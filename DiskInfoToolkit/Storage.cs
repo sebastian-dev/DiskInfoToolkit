@@ -59,42 +59,53 @@ namespace DiskInfoToolkit
 
             if (!SafeFileHandler.IsHandleValid(handle))
             {
-                LogSimple.LogDebug($"Handle for {nameof(Storage)} is invalid.");
+                LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is invalid.");
 
                 IsValid = false;
                 return;
             }
             else
             {
-                LogSimple.LogDebug($"Handle for {nameof(Storage)} is open.");
-                LogSimple.LogDebug($"{nameof(sdi.PhysicalPath)} = '{sdi.PhysicalPath}'.");
+                LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is open.");
+                LogSimple.LogDebug($"{nameof(Storage)}: {nameof(sdi.PhysicalPath)} = '{sdi.PhysicalPath}'.");
             }
 
-            if (false == (IsValid = IdentifyStorageController()))
+            try
             {
-                return;
-            }
+                if (false == (IsValid = IdentifyStorageController()))
+                {
+                    LogSimple.LogTrace($"{nameof(Storage)}: {nameof(IdentifyStorageController)} failed.");
 
-            if (false == (IsValid = GetDiskGeometry(handle)))
+                    return;
+                }
+
+                if (false == (IsValid = GetDiskGeometry(handle)))
+                {
+                    LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskGeometry)} failed.");
+
+                    return;
+                }
+
+                if (false == (IsValid = GetDiskInformation(handle)))
+                {
+                    LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskInformation)} failed.");
+
+                    return;
+                }
+
+                UpdatePartitions(handle);
+
+                IsValid = IdentifyDisk(handle);
+            }
+            finally
             {
-                return;
+                SafeFileHandler.CloseHandle(handle);
             }
-
-            if (false == (IsValid = GetDiskInformation(handle)))
-            {
-                return;
-            }
-
-            UpdatePartitions(handle);
-
-            IsValid = IdentifyDisk(handle);
-
-            SafeFileHandler.CloseHandle(handle);
 
 #if DEBUG
             sw.Stop();
 
-            LogSimple.LogDebug($"Initialization of {nameof(Storage)} took {sw.Elapsed}.");
+            LogSimple.LogDebug($"{nameof(Storage)}: Initialization of {nameof(Storage)} took {sw.Elapsed}.");
 #endif
         }
 
@@ -541,7 +552,7 @@ namespace DiskInfoToolkit
 
             if (!DeviceIdentifier.IdentifyDisk(this, handle))
             {
-                LogSimple.LogWarn($"{nameof(DeviceIdentifier.IdentifyDisk)} unsuccessful.");
+                LogSimple.LogWarn($"{nameof(Storage)}: {nameof(DeviceIdentifier.IdentifyDisk)} unsuccessful.");
                 return false;
             }
 
@@ -591,11 +602,18 @@ namespace DiskInfoToolkit
             {
                 var descriptor = Marshal.PtrToStructure<STORAGE_DEVICE_DESCRIPTOR>(outBuffer);
 
-                Model           = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductIdOffset      );
-                SerialNumber    = Marshal.PtrToStringAnsi(outBuffer + descriptor.SerialNumberOffset   );
-                Firmware        = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductRevisionOffset);
-                BusType         = descriptor.BusType;
+                Model             = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductIdOffset      );
+                SerialNumber      = Marshal.PtrToStringAnsi(outBuffer + descriptor.SerialNumberOffset   );
+                Firmware          = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductRevisionOffset);
+                BusType           = descriptor.BusType;
                 IsRemoveableMedia = descriptor.RemovableMedia != 0;
+
+                LogSimple.LogTrace($"{nameof(GetDiskInformation)}:");
+                LogSimple.LogTrace($"{nameof(Model            )} = '{Model            }'");
+                LogSimple.LogTrace($"{nameof(SerialNumber     )} = '{SerialNumber     }'");
+                LogSimple.LogTrace($"{nameof(Firmware         )} = '{Firmware         }'");
+                LogSimple.LogTrace($"{nameof(BusType          )} = '{BusType          }'");
+                LogSimple.LogTrace($"{nameof(IsRemoveableMedia)} = '{IsRemoveableMedia}'");
 
                 //Is removable media ?
                 if (BusType == StorageBusType.BusTypeUsb && IsRemoveableMedia)
@@ -603,6 +621,8 @@ namespace DiskInfoToolkit
                     //Is possibly a SD Card reader ?
                     if (ModelContains(this, "SD Card"))
                     {
+                        LogSimple.LogTrace($"{nameof(GetDiskInformation)}: Skipping SD Card reader '{Model}'.");
+
                         Marshal.FreeHGlobal(outBuffer);
                         Marshal.FreeHGlobal(queryPtr);
 

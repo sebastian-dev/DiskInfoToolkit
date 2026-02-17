@@ -238,6 +238,8 @@ namespace DiskInfoToolkit.Disk
 
         internal static bool AddDiskNVMe(Storage storage, IntPtr handle, IdentifyDevice identifyDevice, COMMAND_TYPE command)
         {
+            LogSimple.LogTrace($"{nameof(AddDiskNVMe)}: {nameof(COMMAND_TYPE)} = '{command}'.");
+
             storage.Command = command;
 
             storage.Smart.Status |= SmartStatus.IsSmartSupported | SmartStatus.IsSmartEnabled | SmartStatus.IsSmartCorrect;
@@ -273,6 +275,8 @@ namespace DiskInfoToolkit.Disk
 
             if (storage.Model.Length == 0)
             {
+                LogSimple.LogTrace($"{nameof(AddDiskNVMe)}: failed.");
+
                 return false;
             }
 
@@ -302,13 +306,16 @@ namespace DiskInfoToolkit.Disk
                 storage.SmartKey = SmartKey.NVMe;
             }
 
+            LogSimple.LogTrace($"{nameof(AddDiskNVMe)}: success.");
+
             storage.IsSSD = storage.IsNVMe = true;
+
             return true;
         }
 
         internal static bool AddDisk(Storage storage, IntPtr handle, byte target, COMMAND_TYPE commandType, IdentifyDevice identify, CSMI_SAS_PHY_ENTITY? sasPhyEntity = null)
         {
-            LogSimple.LogTrace($"{nameof(AddDisk)} - with {nameof(COMMAND_TYPE)} = '{commandType}'.");
+            LogSimple.LogTrace($"{nameof(AddDisk)}: {nameof(target)} = '{target}' | {nameof(COMMAND_TYPE)} = '{commandType}'.");
 
             storage.Command = commandType;
             storage.Target  = target;
@@ -358,7 +365,7 @@ namespace DiskInfoToolkit.Disk
 
             if (string.IsNullOrEmpty(storage.Model) || string.IsNullOrEmpty(storage.FirmwareRev))
             {
-                LogSimple.LogWarn($"{nameof(storage.Model)} = '{storage.Model}' | {nameof(storage.FirmwareRev)} = '{storage.FirmwareRev}'");
+                LogSimple.LogWarn($"{nameof(AddDisk)}: {nameof(storage.Model)} = '{storage.Model}' | {nameof(storage.FirmwareRev)} = '{storage.FirmwareRev}'");
                 return false;
             }
 
@@ -575,7 +582,7 @@ namespace DiskInfoToolkit.Disk
             List<SmartAttributeStructure> smartAttributes = null;
             List<SmartAttributeStructure> smartAttributesCheck = null;
 
-            LogSimple.LogTrace($"{nameof(SmartStatus)} = {storage.Smart.Status}.");
+            LogSimple.LogTrace($"{nameof(AddDisk)}: before attributes: {nameof(SmartStatus)} = '{storage.Smart.Status}'.");
 
             // Check S.M.A.R.T. Enabled or Disabled
             if (storage.Smart.Status.HasFlag(SmartStatus.IsSmartSupported) || is9126MB)
@@ -929,6 +936,8 @@ namespace DiskInfoToolkit.Disk
                         return false;
                 }
 
+                LogSimple.LogTrace($"{nameof(AddDisk)}: after attributes: {nameof(SmartStatus)} = '{storage.Smart.Status}'.");
+
                 //Set all attributes
                 if (storage.Smart.Status.HasFlag(SmartStatus.IsSmartCorrect) && smartAttributes != null)
                 {
@@ -980,6 +989,8 @@ namespace DiskInfoToolkit.Disk
             {
                 return false;
             }
+
+            LogSimple.LogTrace($"{nameof(AddDisk)}: success.");
 
             return true;
         }

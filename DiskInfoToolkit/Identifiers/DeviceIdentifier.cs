@@ -18,6 +18,7 @@ using DiskInfoToolkit.Interop;
 using DiskInfoToolkit.Interop.Enums;
 using DiskInfoToolkit.Interop.Realtek;
 using DiskInfoToolkit.Interop.Structures;
+using DiskInfoToolkit.Logging;
 using DiskInfoToolkit.NVMe;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -709,6 +710,8 @@ namespace DiskInfoToolkit.Identifiers
 
             if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_PASS_THROUGH, ptr, Marshal.SizeOf<SCSI_PASS_THROUGH>(), ptr, length, out _, IntPtr.Zero))
             {
+                LogSimple.LogTrace($"{nameof(DoIdentifyDeviceSat)}: failed ({nameof(target)} = '{target}' | {nameof(COMMAND_TYPE)}: '{type}').");
+
                 Marshal.FreeHGlobal(ptr);
 
                 identifyDevice = null;
@@ -719,6 +722,8 @@ namespace DiskInfoToolkit.Identifiers
 
             if (false == sptwb.DataBuf.Any(b => b != 0))
             {
+                LogSimple.LogTrace($"{nameof(DoIdentifyDeviceSat)}: is empty ({nameof(target)} = '{target}' | {nameof(COMMAND_TYPE)}: '{type}').");
+
                 Marshal.FreeHGlobal(ptr);
 
                 identifyDevice = null;
@@ -730,6 +735,8 @@ namespace DiskInfoToolkit.Identifiers
             Marshal.Copy(sptwb.DataBuf, 0, identifyDevice.IdentifyDevicePtr, identifyDevice.PtrSize);
 
             Marshal.FreeHGlobal(ptr);
+
+            LogSimple.LogTrace($"{nameof(DoIdentifyDeviceSat)}: success ({nameof(target)} = '{target}' | {nameof(COMMAND_TYPE)}: '{type}').");
 
             return true;
         }
@@ -762,10 +769,14 @@ namespace DiskInfoToolkit.Identifiers
                 identifyDevice = new IdentifyDevice();
 
                 Marshal.Copy(sid.id_data, 0, identifyDevice.IdentifyDevicePtr, identifyDevice.PtrSize);
+
+                LogSimple.LogTrace($"{nameof(DoIdentifyDeviceSi)}: success ({nameof(scsiBus)} = '{scsiBus}').");
             }
             else
             {
                 identifyDevice = null;
+
+                LogSimple.LogTrace($"{nameof(DoIdentifyDeviceSi)}: failed ({nameof(scsiBus)} = '{scsiBus}').");
             }
 
             Marshal.FreeHGlobal(ptr);
@@ -782,6 +793,8 @@ namespace DiskInfoToolkit.Identifiers
 
             if (ATAInfo.AtaPassThrough && ATAInfo.AtaPassThroughSmart)
             {
+                LogSimple.LogTrace($"{nameof(DoIdentifyDevicePd)}: pass through ({nameof(target)} = '{target}').");
+
                 identifyDevice = new IdentifyDevice();
 
                 var buffer = new byte[InteropConstants.IDENTIFY_BUFFER_SIZE];
@@ -790,6 +803,8 @@ namespace DiskInfoToolkit.Identifiers
 
                 if (ok)
                 {
+                    LogSimple.LogTrace($"{nameof(DoIdentifyDevicePd)}: {nameof(ATAMethods.SendAtaCommandPd)} success.");
+
                     Marshal.Copy(buffer, 0, identifyDevice.IdentifyDevicePtr, buffer.Length);
                 }
 
@@ -827,7 +842,13 @@ namespace DiskInfoToolkit.Identifiers
 
                     identifyDevice = null;
 
+                    LogSimple.LogTrace($"{nameof(DoIdentifyDevicePd)}: {nameof(Kernel32.DFP_RECEIVE_DRIVE_DATA)} failed.");
+
                     return false;
+                }
+                else
+                {
+                    LogSimple.LogTrace($"{nameof(DoIdentifyDevicePd)}: {nameof(Kernel32.DFP_RECEIVE_DRIVE_DATA)} success.");
                 }
 
                 sendCmdOut = Marshal.PtrToStructure<IDENTIFY_DEVICE_OUTDATA>(ptrOut);
@@ -845,6 +866,8 @@ namespace DiskInfoToolkit.Identifiers
                 Marshal.FreeHGlobal(ptrOut);
             }
 
+            LogSimple.LogTrace($"{nameof(DoIdentifyDevicePd)}: success ({nameof(target)} = '{target}').");
+
             return true;
         }
 
@@ -853,6 +876,8 @@ namespace DiskInfoToolkit.Identifiers
             if (!SharedMethods.GetScsiAddress(handle, out var scsiAddress))
             {
                 identifyDevice = null;
+
+                LogSimple.LogTrace($"{nameof(DoIdentifyDeviceScsi)}: {nameof(SharedMethods.GetScsiAddress)} failed.");
 
                 return false;
             }
@@ -890,6 +915,8 @@ namespace DiskInfoToolkit.Identifiers
 
                 Marshal.FreeHGlobal(ptrAll);
 
+                LogSimple.LogTrace($"{nameof(DoIdentifyDeviceScsi)}: success.");
+
                 return true;
             }
             else
@@ -897,6 +924,8 @@ namespace DiskInfoToolkit.Identifiers
                 identifyDevice = null;
 
                 Marshal.FreeHGlobal(ptrAll);
+
+                LogSimple.LogTrace($"{nameof(DoIdentifyDeviceScsi)}: failed.");
 
                 return false;
             }

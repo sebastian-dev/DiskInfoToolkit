@@ -13,6 +13,7 @@ using BlackSharp.Core.Interop.Windows.Utilities;
 using DiskInfoToolkit.Enums.Interop;
 using DiskInfoToolkit.Interop;
 using DiskInfoToolkit.Interop.Structures;
+using DiskInfoToolkit.Logging;
 using DiskInfoToolkit.Structures.Interop;
 using System.Runtime.InteropServices;
 
@@ -104,6 +105,8 @@ namespace DiskInfoToolkit
         {
             if (!ReadPartitions(handle, out partitions))
             {
+                LogSimple.LogTrace($"{nameof(ReadPartitions)}: failed.");
+
                 return false;
             }
 
