@@ -22,18 +22,26 @@ namespace DiskInfoToolkit.Interop
             var length = Marshal.SizeOf<SCSI_ADDRESS>();
 
             var ptr = Marshal.AllocHGlobal(length);
-            Marshal.StructureToPtr(sa, ptr, false);
 
-            if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_GET_ADDRESS, IntPtr.Zero, 0, ptr, length, out _, IntPtr.Zero))
+            try
             {
-                scsiAddress = default;
+                Marshal.StructureToPtr(sa, ptr, false);
 
-                return false;
+                if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_GET_ADDRESS, IntPtr.Zero, 0, ptr, length, out _, IntPtr.Zero))
+                {
+                    scsiAddress = default;
+
+                    return false;
+                }
+
+                scsiAddress = Marshal.PtrToStructure<SCSI_ADDRESS>(ptr);
+
+                return true;
             }
-
-            scsiAddress = Marshal.PtrToStructure<SCSI_ADDRESS>(ptr);
-
-            return true;
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
         }
     }
 }
