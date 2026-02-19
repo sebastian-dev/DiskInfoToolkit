@@ -71,6 +71,7 @@
         USB_VENDOR_OXFORD = 0x0928,
         USB_VENDOR_PROLIFIC = 0x067B,
         USB_VENDOR_REALTEK = 0x0BDA,
+        USB_VENDOR_GENESYS = 0x05E3,
         USB_VENDOR_ALL = 0xFFFF,
     }
 }

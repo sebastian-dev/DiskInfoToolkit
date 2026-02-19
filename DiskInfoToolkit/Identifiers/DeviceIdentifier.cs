@@ -125,16 +125,38 @@ namespace DiskInfoToolkit.Identifiers
 
                 if (storage.DriveNumber >= 0)
                 {
-                    DiskHandler.TryWakeUp(storage, handle);
-
                     if (storage.BusType == StorageBusType.BusTypeUsb && storage.VendorID == (ushort)VendorIDs.USB_VENDOR_LOGITEC && storage.ProductID == 0x00D9)
                     {
                         return false;
                     }
-                    if (storage.BusType == StorageBusType.BusTypeUsb && storage.VendorID == 0x05E3 && storage.ProductID == 0x0702)
+
+                    if (storage.BusType == StorageBusType.BusTypeUsb && storage.VendorID == (ushort)VendorIDs.USB_VENDOR_GENESYS && storage.ProductID == 0x0702)
                     {
                         return false;
                     }
+
+                    //Explicitly filter some SD Card Readers
+                    if (storage.BusType == StorageBusType.BusTypeUsb && storage.VendorID == (ushort)VendorIDs.USB_VENDOR_REALTEK)
+                    {
+                        if (storage.ProductID.HasValue
+                         && storage.ProductID.Value.Any<ushort>(0x0186, 0x0307, 0x0316, 0x0326))
+                        {
+                            return false;
+                        }
+                    }
+
+                    //Explicitly filter some SD Card Readers
+                    if (storage.BusType == StorageBusType.BusTypeUsb && storage.VendorID == (ushort)VendorIDs.USB_VENDOR_GENESYS)
+                    {
+                        if (storage.ProductID.HasValue
+                         && ((int)storage.ProductID.Value).Between(0x0703, 0x0709))
+                        {
+                            return false;
+                        }
+                    }
+
+                    //Try wakeup after filters were checked
+                    DiskHandler.TryWakeUp(storage, handle);
 
                     if (storage.BusType == StorageBusType.BusTypeUsb && storage.VendorID == (ushort)VendorIDs.USB_VENDOR_JMICRON)
                     {

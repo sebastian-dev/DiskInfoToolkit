@@ -598,42 +598,54 @@ namespace DiskInfoToolkit
 
             var outBuffer = Marshal.AllocHGlobal(SharedConstants.BUFFER_SIZE);
 
-            if (Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_STORAGE_QUERY_PROPERTY, queryPtr, querySize, outBuffer, SharedConstants.BUFFER_SIZE, out _, IntPtr.Zero))
+            try
             {
-                var descriptor = Marshal.PtrToStructure<STORAGE_DEVICE_DESCRIPTOR>(outBuffer);
-
-                Model             = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductIdOffset      );
-                SerialNumber      = Marshal.PtrToStringAnsi(outBuffer + descriptor.SerialNumberOffset   );
-                Firmware          = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductRevisionOffset);
-                BusType           = descriptor.BusType;
-                IsRemoveableMedia = descriptor.RemovableMedia != 0;
-
-                LogSimple.LogTrace($"{nameof(GetDiskInformation)}:");
-                LogSimple.LogTrace($"{nameof(Model            )} = '{Model            }'");
-                LogSimple.LogTrace($"{nameof(SerialNumber     )} = '{SerialNumber     }'");
-                LogSimple.LogTrace($"{nameof(Firmware         )} = '{Firmware         }'");
-                LogSimple.LogTrace($"{nameof(BusType          )} = '{BusType          }'");
-                LogSimple.LogTrace($"{nameof(IsRemoveableMedia)} = '{IsRemoveableMedia}'");
-
-                //Is removable media ?
-                if (BusType == StorageBusType.BusTypeUsb && IsRemoveableMedia)
+                if (Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_STORAGE_QUERY_PROPERTY, queryPtr, querySize, outBuffer, SharedConstants.BUFFER_SIZE, out _, IntPtr.Zero))
                 {
-                    //Is possibly a SD Card reader ?
-                    if (ModelContains(this, "SD Card"))
+                    var descriptor = Marshal.PtrToStructure<STORAGE_DEVICE_DESCRIPTOR>(outBuffer);
+
+                    Model             = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductIdOffset      );
+                    SerialNumber      = Marshal.PtrToStringAnsi(outBuffer + descriptor.SerialNumberOffset   );
+                    Firmware          = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductRevisionOffset);
+                    BusType           = descriptor.BusType;
+                    IsRemoveableMedia = descriptor.RemovableMedia != 0;
+
+                    LogSimple.LogTrace($"{nameof(GetDiskInformation)}:");
+                    LogSimple.LogTrace($"{nameof(Model            )} = '{Model            }'");
+                    LogSimple.LogTrace($"{nameof(SerialNumber     )} = '{SerialNumber     }'");
+                    LogSimple.LogTrace($"{nameof(Firmware         )} = '{Firmware         }'");
+                    LogSimple.LogTrace($"{nameof(BusType          )} = '{BusType          }'");
+                    LogSimple.LogTrace($"{nameof(IsRemoveableMedia)} = '{IsRemoveableMedia}'");
+
+                    //Is removable media ?
+                    if (BusType == StorageBusType.BusTypeUsb && IsRemoveableMedia)
                     {
-                        LogSimple.LogTrace($"{nameof(GetDiskInformation)}: Skipping SD Card reader '{Model}'.");
-
-                        Marshal.FreeHGlobal(outBuffer);
-                        Marshal.FreeHGlobal(queryPtr);
-
-                        //Skip that
+                        //Is possibly a SD Card reader ?
+                        if (ModelContains(this, "SD Card"    )
+                         || ModelContains(this, "Card Reader")
+                         || ModelContains(this, "CardReader" )
+                         || ModelContains(this, "SD/MMC"     )
+                         || ModelContains(this, "SDXC"       )
+                         || ModelContains(this, "SDHC"       )
+                         || ModelContains(this, "Multi-Card" )
+                         || ModelContains(this, "CF Card"    ))
+                        {
+                            LogSimple.LogTrace($"{nameof(GetDiskInformation)}: Skipping SD Card reader '{Model}'.");
+                            return false;
+                        }
+                    }
+                    else if (BusType == StorageBusType.BusTypeSd || BusType == StorageBusType.BusTypeMmc)
+                    {
+                        LogSimple.LogTrace($"{nameof(GetDiskInformation)}: Skipping SD/MMC device '{Model}'.");
                         return false;
                     }
                 }
             }
-
-            Marshal.FreeHGlobal(outBuffer);
-            Marshal.FreeHGlobal(queryPtr);
+            finally
+            {
+                Marshal.FreeHGlobal(outBuffer);
+                Marshal.FreeHGlobal(queryPtr);
+            }
 
             return true;
         }
