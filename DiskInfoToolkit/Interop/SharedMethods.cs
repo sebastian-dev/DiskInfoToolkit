@@ -9,6 +9,8 @@
  * CrystalDiskInfo
  */
 
+using BlackSharp.Core.Interop.Windows.Enums;
+using BlackSharp.Core.Interop.Windows.Utilities;
 using DiskInfoToolkit.Interop.Structures;
 using System.Runtime.InteropServices;
 
@@ -16,6 +18,8 @@ namespace DiskInfoToolkit.Interop
 {
     internal static class SharedMethods
     {
+        #region Public
+
         public static bool GetScsiAddress(IntPtr handle, out SCSI_ADDRESS scsiAddress)
         {
             var sa = new SCSI_ADDRESS();
@@ -43,5 +47,26 @@ namespace DiskInfoToolkit.Interop
                 Marshal.FreeHGlobal(ptr);
             }
         }
+
+        public static bool TryGetScsiHandle(SCSI_ADDRESS scsiAddress, FileFlagsAndAttributes fileFlagsAndAttributes, out IntPtr scsiHandle)
+        {
+            var scsiStr = $@"\\.\Scsi{scsiAddress.PortNumber}:";
+
+            scsiHandle = SafeFileHandler.OpenHandle(scsiStr, fileFlagsAndAttributes);
+
+            if (!SafeFileHandler.IsHandleValid(scsiHandle))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public static bool TryGetScsiHandle(SCSI_ADDRESS scsiAddress, out IntPtr scsiHandle)
+        {
+            return TryGetScsiHandle(scsiAddress, (FileFlagsAndAttributes)0, out scsiHandle);
+        }
+
+        #endregion
     }
 }

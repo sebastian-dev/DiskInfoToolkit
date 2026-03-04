@@ -19,10 +19,10 @@ namespace DiskInfoToolkit.Interop.Structures
     {
         private uint _value;
 
-        public byte   LID   { get => (byte  )BitHandler.GetBits(_value,  0,  8);      set => _value = BitHandler.SetBits(_value, value, 0, 8); }
-        public byte   LSP   { get => (byte  )BitHandler.GetBits(_value,  8,  4);      set => _value = BitHandler.SetBits(_value, value, 8, 4); }
-        public bool   RAE   { get =>         BitHandler.GetBits(_value, 15,  1) != 0; set => _value = BitHandler.SetBits(_value, (uint)(value ? 1 : 0), 15, 1); }
-        public ushort NUMDL { get => (ushort)BitHandler.GetBits(_value, 16, 16);      set => _value = BitHandler.SetBits(_value, value, 16, 16); }
+        public byte   LID   { get => (byte  )BitHandler.GetBits(_value,  0,  7);      set => _value = BitHandler.SetBits(_value, value,  0,  7); }
+        public byte   LSP   { get => (byte  )BitHandler.GetBits(_value,  8, 11);      set => _value = BitHandler.SetBits(_value, value,  8, 11); }
+        public bool   RAE   { get =>         BitHandler.GetBits(_value, 15, 15) != 0; set => _value = BitHandler.SetBits(_value, (uint)(value ? 1 : 0), 15, 15); }
+        public ushort NUMDL { get => (ushort)BitHandler.GetBits(_value, 16, 31);      set => _value = BitHandler.SetBits(_value, value, 16, 31); }
         public uint AsDWord => _value;
     }
 }

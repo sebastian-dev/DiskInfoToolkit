@@ -19,11 +19,11 @@ namespace DiskInfoToolkit.Interop.Structures
     {
         private uint _value;
 
-        public byte Opcode { get => (byte  )BitHandler.GetBits(_value,  0,  8); set => _value = BitHandler.SetBits(_value, value,  0,  8); }
-        public byte FUSE   { get => (byte  )BitHandler.GetBits(_value,  8,  2); set => _value = BitHandler.SetBits(_value, value,  8,  2); }
-        public byte Rsvd   { get => (byte  )BitHandler.GetBits(_value, 10,  4); set => _value = BitHandler.SetBits(_value, value, 10,  4); }
-        public byte PSDT   { get => (byte  )BitHandler.GetBits(_value, 14,  2); set => _value = BitHandler.SetBits(_value, value, 14,  2); }
-        public ushort CID  { get => (ushort)BitHandler.GetBits(_value, 16, 16); set => _value = BitHandler.SetBits(_value, value, 16, 16); }
+        public byte Opcode { get => (byte  )BitHandler.GetBits(_value,  0,  7); set => _value = BitHandler.SetBits(_value, value,  0,  7); }
+        public byte FUSE   { get => (byte  )BitHandler.GetBits(_value,  8,  9); set => _value = BitHandler.SetBits(_value, value,  8,  9); }
+        public byte Rsvd   { get => (byte  )BitHandler.GetBits(_value, 10, 13); set => _value = BitHandler.SetBits(_value, value, 10, 13); }
+        public byte PSDT   { get => (byte  )BitHandler.GetBits(_value, 14, 15); set => _value = BitHandler.SetBits(_value, value, 14, 15); }
+        public ushort CID  { get => (ushort)BitHandler.GetBits(_value, 16, 31); set => _value = BitHandler.SetBits(_value, value, 16, 31); }
         public uint AsDWord => _value;
     }
 }

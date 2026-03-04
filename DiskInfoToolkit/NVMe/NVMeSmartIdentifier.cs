@@ -10,6 +10,8 @@
  */
 
 using BlackSharp.Core.Extensions;
+using BlackSharp.Core.Interop.Windows.Enums;
+using BlackSharp.Core.Interop.Windows.Utilities;
 using DiskInfoToolkit.Disk;
 using DiskInfoToolkit.Globals;
 using DiskInfoToolkit.Interop;
@@ -81,80 +83,92 @@ namespace DiskInfoToolkit.NVMe
             if (!SharedMethods.GetScsiAddress(handle, out var scsiAddress))
             {
                 identifyDevice = null;
-
                 return false;
             }
 
-            var nptwb = new NVME_PASS_THROUGH_IOCTL();
-            var size = Marshal.SizeOf<NVME_PASS_THROUGH_IOCTL>();
-
-            Array.Copy(InteropConstants.NVME_RAID_SIG_STR_ARR, nptwb.SrbIoCtrl.Signature, InteropConstants.NVME_RAID_SIG_STR_LEN);
-            nptwb.SrbIoCtrl.ControlCode = InteropConstants.NVME_PASS_THROUGH_SRB_IO_CODE;
-            nptwb.SrbIoCtrl.Timeout = InteropConstants.NVME_PT_TIMEOUT;
-            nptwb.SrbIoCtrl.HeaderLength = (uint)Marshal.SizeOf<SRB_IO_CONTROL>();
-            nptwb.SrbIoCtrl.Length = (uint)(size - Marshal.SizeOf<SRB_IO_CONTROL>());
-
-            nptwb.SrbIoCtrl.ReturnCode = (uint)(0x86000000 + (scsiAddress.PathId << 16) + (scsiAddress.TargetId << 8) + scsiAddress.Lun);
-
-            nptwb.Direction = InteropConstants.NVME_FROM_DEV_TO_HOST;
-            nptwb.QueueId = 0;
-            nptwb.MetaDataLen = 0;
-            nptwb.DataBufferLen = (uint)nptwb.DataBuffer.Length;
-            nptwb.ReturnBufferLen = (uint)size;
-
-            nptwb.NVMeCmd[0] = 6; //Identify
-            nptwb.NVMeCmd[1] = 1; //Namespace Identifier (CDW1.NSID)
-            nptwb.NVMeCmd[10] = 0; //Controller or Namespace Structure (CNS)
-
-            nptwb.DataBuffer[0] = 1;
-
-            var ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(nptwb, ptr, false);
-
-            if (Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
+            if (!SharedMethods.TryGetScsiHandle(scsiAddress, FileFlagsAndAttributes.Normal, out var scsiHandle))
             {
-                var offset = Marshal.OffsetOf<NVME_PASS_THROUGH_IOCTL>(nameof(nptwb.DataBuffer));
-
-                var totalLBA = MarshalExtensions.ReadUInt64(ptr, offset.ToInt32());
-                var sectorSize = 1 << Marshal.ReadByte(ptr, offset.ToInt32() + 130);
-
-                //storage.TotalSize = totalLBA * (ulong)sectorSize / 1000 / 1000;
-            }
-
-            nptwb = Marshal.PtrToStructure<NVME_PASS_THROUGH_IOCTL>(ptr);
-
-            nptwb.SrbIoCtrl.ReturnCode = (uint)(0x86000000 + (scsiAddress.PathId << 16) + (scsiAddress.TargetId << 8) + scsiAddress.Lun);
-
-            nptwb.NVMeCmd[1] = 0; //Namespace Identifier (CDW1.NSID)
-            nptwb.NVMeCmd[10] = 1; //Controller or Namespace Structure (CNS)
-
-            Marshal.StructureToPtr(nptwb, ptr, false);
-
-            if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
-            {
-                Marshal.FreeHGlobal(ptr);
-
                 identifyDevice = null;
                 return false;
             }
 
-            nptwb = Marshal.PtrToStructure<NVME_PASS_THROUGH_IOCTL>(ptr);
-
-            if (false == nptwb.DataBuffer.Any(b => b != 0))
+            try
             {
+                var nptwb = new NVME_PASS_THROUGH_IOCTL();
+                var size = Marshal.SizeOf<NVME_PASS_THROUGH_IOCTL>();
+
+                Array.Copy(InteropConstants.NVME_RAID_SIG_STR_ARR, nptwb.SrbIoCtrl.Signature, InteropConstants.NVME_RAID_SIG_STR_LEN);
+                nptwb.SrbIoCtrl.ControlCode = InteropConstants.NVME_PASS_THROUGH_SRB_IO_CODE;
+                nptwb.SrbIoCtrl.Timeout = InteropConstants.NVME_PT_TIMEOUT;
+                nptwb.SrbIoCtrl.HeaderLength = (uint)Marshal.SizeOf<SRB_IO_CONTROL>();
+                nptwb.SrbIoCtrl.Length = (uint)(size - Marshal.SizeOf<SRB_IO_CONTROL>());
+
+                nptwb.SrbIoCtrl.ReturnCode = (uint)(0x86000000 + (scsiAddress.PathId << 16) + (scsiAddress.TargetId << 8) + scsiAddress.Lun);
+
+                nptwb.Direction = InteropConstants.NVME_FROM_DEV_TO_HOST;
+                nptwb.QueueId = 0;
+                nptwb.MetaDataLen = 0;
+                nptwb.DataBufferLen = (uint)nptwb.DataBuffer.Length;
+                nptwb.ReturnBufferLen = (uint)size;
+
+                nptwb.NVMeCmd[0] = 6; //Identify
+                nptwb.NVMeCmd[1] = 1; //Namespace Identifier (CDW1.NSID)
+                nptwb.NVMeCmd[10] = 0; //Controller or Namespace Structure (CNS)
+
+                nptwb.DataBuffer[0] = 1;
+
+                var ptr = Marshal.AllocHGlobal(size);
+                Marshal.StructureToPtr(nptwb, ptr, false);
+
+                if (Kernel32.DeviceIoControl(scsiHandle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
+                {
+                    var offset = Marshal.OffsetOf<NVME_PASS_THROUGH_IOCTL>(nameof(nptwb.DataBuffer));
+
+                    var totalLBA = MarshalExtensions.ReadUInt64(ptr, offset.ToInt32());
+                    var sectorSize = 1 << Marshal.ReadByte(ptr, offset.ToInt32() + 130);
+
+                    //storage.TotalSize = totalLBA * (ulong)sectorSize / 1000 / 1000;
+                }
+
+                nptwb = Marshal.PtrToStructure<NVME_PASS_THROUGH_IOCTL>(ptr);
+
+                nptwb.SrbIoCtrl.ReturnCode = (uint)(0x86000000 + (scsiAddress.PathId << 16) + (scsiAddress.TargetId << 8) + scsiAddress.Lun);
+
+                nptwb.NVMeCmd[1] = 0; //Namespace Identifier (CDW1.NSID)
+                nptwb.NVMeCmd[10] = 1; //Controller or Namespace Structure (CNS)
+
+                Marshal.StructureToPtr(nptwb, ptr, false);
+
+                if (!Kernel32.DeviceIoControl(scsiHandle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
+                {
+                    Marshal.FreeHGlobal(ptr);
+
+                    identifyDevice = null;
+                    return false;
+                }
+
+                nptwb = Marshal.PtrToStructure<NVME_PASS_THROUGH_IOCTL>(ptr);
+
+                if (false == nptwb.DataBuffer.Any(b => b != 0))
+                {
+                    Marshal.FreeHGlobal(ptr);
+
+                    identifyDevice = null;
+                    return false;
+                }
+
+                identifyDevice = new IdentifyDevice();
+
+                Marshal.Copy(nptwb.DataBuffer, 0, identifyDevice.IdentifyDevicePtr, identifyDevice.PtrSize);
+
                 Marshal.FreeHGlobal(ptr);
 
-                identifyDevice = null;
-                return false;
+                return true;
             }
-
-            identifyDevice = new IdentifyDevice();
-
-            Marshal.Copy(nptwb.DataBuffer, 0, identifyDevice.IdentifyDevicePtr, identifyDevice.PtrSize);
-
-            Marshal.FreeHGlobal(ptr);
-
-            return true;
+            finally
+            {
+                SafeFileHandler.CloseHandle(scsiHandle);
+            }
         }
 
         public static bool DoIdentifyDeviceNVMeIntelRst(Storage storage, IntPtr handle, out IdentifyDevice identifyDevice)
@@ -162,73 +176,85 @@ namespace DiskInfoToolkit.NVMe
             if (!SharedMethods.GetScsiAddress(handle, out var scsiAddress))
             {
                 identifyDevice = null;
-
                 return false;
             }
 
-            var nvmeData = new INTEL_NVME_PASS_THROUGH();
-            var size = Marshal.SizeOf<INTEL_NVME_PASS_THROUGH>();
-
-            nvmeData.SRB.HeaderLength = (uint)Marshal.SizeOf<SRB_IO_CONTROL>();
-            Array.Copy(InteropConstants.NVME_INTEL_SIG_STR_ARR, nvmeData.SRB.Signature, InteropConstants.NVME_INTEL_SIG_STR_LEN);
-            nvmeData.SRB.Timeout = 10;
-            nvmeData.SRB.ControlCode = Kernel32.IOCTL_INTEL_NVME_PASS_THROUGH;
-            nvmeData.SRB.Length = (uint)(size - Marshal.SizeOf<SRB_IO_CONTROL>());
-
-            nvmeData.Payload.Version = 1;
-            nvmeData.Payload.PathId = scsiAddress.PathId;
-            nvmeData.Payload.Cmd.CDW0.Opcode = 0x06; //ADMIN_IDENTIFY
-            nvmeData.Payload.Cmd.NSID = 1;
-            nvmeData.Payload.Cmd.u.IDENTIFY.CDW10.CNS = 0;
-            nvmeData.Payload.ParamBufLen = (uint)(Marshal.SizeOf<INTEL_NVME_PAYLOAD>() + Marshal.SizeOf<SRB_IO_CONTROL>()); //0xA4;
-            nvmeData.Payload.ReturnBufferLen = 0x1000;
-            nvmeData.Payload.CplEntry[0] = 0;
-
-            var ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(nvmeData, ptr, false);
-
-            if (Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
+            if (!SharedMethods.TryGetScsiHandle(scsiAddress, out var scsiHandle))
             {
-                var offset = Marshal.OffsetOf<INTEL_NVME_PASS_THROUGH>(nameof(nvmeData.DataBuffer));
-
-                var totalLBA = MarshalExtensions.ReadUInt64(ptr, offset.ToInt32());
-                var sectorSize = 1 << Marshal.ReadByte(ptr, offset.ToInt32() + 130);
-
-                //storage.TotalSize = totalLBA * (ulong)sectorSize / 1000 / 1000;
-            }
-
-            nvmeData = Marshal.PtrToStructure<INTEL_NVME_PASS_THROUGH>(ptr);
-
-            nvmeData.Payload.Cmd.NSID = 0;
-            nvmeData.Payload.Cmd.u.IDENTIFY.CDW10.CNS = 1;
-
-            Marshal.StructureToPtr(nvmeData, ptr, false);
-
-            if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
-            {
-                Marshal.FreeHGlobal(ptr);
-
                 identifyDevice = null;
                 return false;
             }
 
-            nvmeData = Marshal.PtrToStructure<INTEL_NVME_PASS_THROUGH>(ptr);
-
-            if (false == nvmeData.DataBuffer.Any(b => b != 0))
+            try
             {
+                var nvmeData = new INTEL_NVME_PASS_THROUGH();
+                var size = Marshal.SizeOf<INTEL_NVME_PASS_THROUGH>();
+
+                nvmeData.SRB.HeaderLength = (uint)Marshal.SizeOf<SRB_IO_CONTROL>();
+                Array.Copy(InteropConstants.NVME_INTEL_SIG_STR_ARR, nvmeData.SRB.Signature, InteropConstants.NVME_INTEL_SIG_STR_LEN);
+                nvmeData.SRB.Timeout = 10;
+                nvmeData.SRB.ControlCode = Kernel32.IOCTL_INTEL_NVME_PASS_THROUGH;
+                nvmeData.SRB.Length = (uint)(size - Marshal.SizeOf<SRB_IO_CONTROL>());
+
+                nvmeData.Payload.Version = 1;
+                nvmeData.Payload.PathId = scsiAddress.PathId;
+                nvmeData.Payload.Cmd.CDW0.Opcode = 0x06; //ADMIN_IDENTIFY
+                nvmeData.Payload.Cmd.NSID = 1;
+                nvmeData.Payload.Cmd.u.IDENTIFY.CDW10.CNS = 0;
+                nvmeData.Payload.ParamBufLen = (uint)(Marshal.SizeOf<INTEL_NVME_PAYLOAD>() + Marshal.SizeOf<SRB_IO_CONTROL>()); //0xA4;
+                nvmeData.Payload.ReturnBufferLen = 0x1000;
+                nvmeData.Payload.CplEntry[0] = 0;
+
+                var ptr = Marshal.AllocHGlobal(size);
+                Marshal.StructureToPtr(nvmeData, ptr, false);
+
+                if (Kernel32.DeviceIoControl(scsiHandle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
+                {
+                    var offset = Marshal.OffsetOf<INTEL_NVME_PASS_THROUGH>(nameof(nvmeData.DataBuffer));
+
+                    var totalLBA = MarshalExtensions.ReadUInt64(ptr, offset.ToInt32());
+                    var sectorSize = 1 << Marshal.ReadByte(ptr, offset.ToInt32() + 130);
+
+                    //storage.TotalSize = totalLBA * (ulong)sectorSize / 1000 / 1000;
+                }
+
+                nvmeData = Marshal.PtrToStructure<INTEL_NVME_PASS_THROUGH>(ptr);
+
+                nvmeData.Payload.Cmd.NSID = 0;
+                nvmeData.Payload.Cmd.u.IDENTIFY.CDW10.CNS = 1;
+
+                Marshal.StructureToPtr(nvmeData, ptr, false);
+
+                if (!Kernel32.DeviceIoControl(scsiHandle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, size, ptr, size, out _, IntPtr.Zero))
+                {
+                    Marshal.FreeHGlobal(ptr);
+
+                    identifyDevice = null;
+                    return false;
+                }
+
+                nvmeData = Marshal.PtrToStructure<INTEL_NVME_PASS_THROUGH>(ptr);
+
+                if (false == nvmeData.DataBuffer.Any(b => b != 0))
+                {
+                    Marshal.FreeHGlobal(ptr);
+
+                    identifyDevice = null;
+                    return false;
+                }
+
+                identifyDevice = new IdentifyDevice();
+
+                Marshal.Copy(nvmeData.DataBuffer, 0, identifyDevice.IdentifyDevicePtr, identifyDevice.PtrSize);
+
                 Marshal.FreeHGlobal(ptr);
 
-                identifyDevice = null;
-                return false;
+                return true;
             }
-
-            identifyDevice = new IdentifyDevice();
-
-            Marshal.Copy(nvmeData.DataBuffer, 0, identifyDevice.IdentifyDevicePtr, identifyDevice.PtrSize);
-
-            Marshal.FreeHGlobal(ptr);
-
-            return true;
+            finally
+            {
+                SafeFileHandler.CloseHandle(scsiHandle);
+            }
         }
 
         public static bool DoIdentifyDeviceNVMeSamsung(Storage storage, IntPtr handle, out IdentifyDevice identifyDevice)

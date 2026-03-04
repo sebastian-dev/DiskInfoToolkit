@@ -80,7 +80,7 @@ namespace DiskInfoToolkit.Identifiers
                         }
                     }
                 }
-                else if (storage.BusType == StorageBusType.BusTypeNvme)
+                else if (storage.BusType == StorageBusType.BusTypeNvme || storage.BusType == StorageBusType.BusTypeRAID)
                 {
                     if (Storage.HasNVMeStorageQuery && NVMeSmartIdentifier.DoIdentifyDeviceNVMeStorageQuery(storage, handle, out identifyDevice))
                     {

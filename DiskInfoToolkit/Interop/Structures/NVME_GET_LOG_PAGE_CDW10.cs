@@ -19,8 +19,8 @@ namespace DiskInfoToolkit.Interop.Structures
     {
         private uint _value;
 
-        public byte LID    { get => (byte  )BitHandler.GetBits(_value,  0,  8); set => _value = BitHandler.SetBits(_value, value,  0,  8); }
-        public ushort NUMD { get => (ushort)BitHandler.GetBits(_value, 16, 12); set => _value = BitHandler.SetBits(_value, value, 16, 12); }
+        public byte LID    { get => (byte  )BitHandler.GetBits(_value,  0,  7); set => _value = BitHandler.SetBits(_value, value,  0,  7); }
+        public ushort NUMD { get => (ushort)BitHandler.GetBits(_value, 16, 27); set => _value = BitHandler.SetBits(_value, value, 16, 27); }
         public uint AsDWord => _value;
     }
 }
