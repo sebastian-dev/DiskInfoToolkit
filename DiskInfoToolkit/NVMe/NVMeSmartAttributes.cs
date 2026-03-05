@@ -10,7 +10,9 @@
  */
 
 using BlackSharp.Core.Interop.Windows.Enums;
+using BlackSharp.Core.Interop.Windows.Mutexes;
 using BlackSharp.Core.Interop.Windows.Utilities;
+using DiskInfoToolkit.Globals;
 using DiskInfoToolkit.Interop;
 using DiskInfoToolkit.Interop.Enums;
 using DiskInfoToolkit.Interop.Realtek;
@@ -439,7 +441,7 @@ namespace DiskInfoToolkit.NVMe
             var size = (int)(Marshal.OffsetOf<SCSI_PASS_THROUGH_WITH_BUFFERS24>(nameof(sptwb.DataBuf)).ToInt32() + sptwb.Spt.DataTransferLength);
             var ptrSize = Marshal.SizeOf<SCSI_PASS_THROUGH_WITH_BUFFERS24>();
 
-            //TODO: WorldMutex for JMicron | name = "Access_JMicron_SMART"
+            using var guard = new WorldMutexGuard(WorldMutexManager.WorldJMicronMutex);
 
             var ptr = Marshal.AllocHGlobal(ptrSize);
             Marshal.StructureToPtr(sptwb, ptr, false);
@@ -538,7 +540,7 @@ namespace DiskInfoToolkit.NVMe
                 return false;
             }
 
-            sptwb = new SCSI_PASS_THROUGH_WITH_BUFFERS();
+            sptwb = Marshal.PtrToStructure<SCSI_PASS_THROUGH_WITH_BUFFERS>(ptr);
 
             if (false == sptwb.DataBuf.Any(b => b != 0))
             {
