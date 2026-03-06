@@ -552,7 +552,7 @@ namespace DiskInfoToolkit
 
             if (!DeviceIdentifier.IdentifyDisk(this, handle))
             {
-                LogSimple.LogWarn($"{nameof(Storage)}: {nameof(DeviceIdentifier.IdentifyDisk)} unsuccessful.");
+                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(DeviceIdentifier.IdentifyDisk)} unsuccessful.");
                 return false;
             }
 
