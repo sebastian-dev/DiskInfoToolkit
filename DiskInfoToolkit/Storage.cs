@@ -157,6 +157,9 @@ namespace DiskInfoToolkit
 
         internal byte Target { get; set; }
 
+        internal byte ScsiPort { get; set; } = byte.MaxValue;
+        internal byte ScsiTargetID { get; set; } = byte.MaxValue;
+
         internal int SiliconImageType { get; private set; }
 
         internal float TemperatureMultiplier { get; set; } = 1.0f;

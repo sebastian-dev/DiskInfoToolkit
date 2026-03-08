@@ -49,6 +49,21 @@ namespace DiskInfoToolkit.Tests.Interop.Structures
             TestStructureSize<SRB_IO_CONTROL>(28);
 
             TestStructureSize<STORAGE_PROPERTY_QUERY>(12);
+
+            TestStructureSize<CSMI_SAS_IDENTIFY>(28);
+            TestStructureSize<CSMI_SAS_PHY_ENTITY>(64);
+            TestStructureSize<CSMI_SAS_DRIVER_INFO>(174);
+            TestStructureSize<CSMI_SAS_DRIVER_INFO_BUFFER>(202);
+            TestStructureSize<CSMI_SAS_RAID_INFO>(100);
+            TestStructureSize<CSMI_SAS_RAID_INFO_BUFFER>(128);
+            TestStructureSize<CSMI_SAS_RAID_DRIVES>(136);
+            //TestStructureSize<CSMI_SAS_RAID_CONFIG_BUFFER>(200); //TODO
+            //TestStructureSize<CSMI_SAS_RAID_CONFIG>(172); //TODO
+            TestStructureSize<CSMI_SAS_RAID_DEVICE_ID>(1);
+            TestStructureSize<CSMI_SAS_RAID_SET_ADDITIONAL_DATA>(116);
+            //TestStructureSize<CSMI_SAS_RAID_CONFIG_UNION>(136); //TODO
+            TestStructureSize<CSMI_SAS_PHY_INFO>(2052);
+            TestStructureSize<CSMI_SAS_PHY_INFO_BUFFER>(2080);
         }
 
         [TestMethod]

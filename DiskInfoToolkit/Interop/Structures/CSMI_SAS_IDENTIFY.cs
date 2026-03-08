@@ -2,7 +2,7 @@
 
 namespace DiskInfoToolkit.Interop.Structures
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal struct CSMI_SAS_IDENTIFY
     {
         public CSMI_SAS_IDENTIFY()
@@ -16,10 +16,13 @@ namespace DiskInfoToolkit.Interop.Structures
 		public byte bRestricted;
 		public byte bInitiatorPortProtocol;
 		public byte bTargetPortProtocol;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
 		public byte[] bRestricted2;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
 		public byte[] bSASAddress;
 		public byte bPhyIdentifier;
 		public byte bSignalClass;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
 		public byte[] bReserved;
     }
 }

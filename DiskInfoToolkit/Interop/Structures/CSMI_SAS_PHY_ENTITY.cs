@@ -2,7 +2,7 @@
 
 namespace DiskInfoToolkit.Interop.Structures
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal struct CSMI_SAS_PHY_ENTITY
     {
         public CSMI_SAS_PHY_ENTITY()

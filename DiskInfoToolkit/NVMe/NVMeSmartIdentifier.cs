@@ -81,10 +81,25 @@ namespace DiskInfoToolkit.NVMe
 
         public static bool DoIdentifyDeviceNVMeIntelVroc(Storage storage, IntPtr handle, out IdentifyDevice identifyDevice)
         {
-            if (!SharedMethods.GetScsiAddress(handle, out var scsiAddress))
+            return DoIdentifyDeviceNVMeIntelVroc(storage, handle, -1, -1, out identifyDevice);
+        }
+
+        public static bool DoIdentifyDeviceNVMeIntelVroc(Storage storage, IntPtr handle, int scsiPort, int scsiTarget, out IdentifyDevice identifyDevice)
+        {
+            var scsiAddress = new SCSI_ADDRESS();
+
+            if (scsiPort >= 0 && scsiTarget >= 0)
             {
-                identifyDevice = null;
-                return false;
+                scsiAddress.PortNumber = (byte)scsiPort;
+                scsiAddress.TargetId = (byte)scsiTarget;
+            }
+            else
+            {
+                if (!SharedMethods.GetScsiAddress(handle, out scsiAddress))
+                {
+                    identifyDevice = null;
+                    return false;
+                }
             }
 
             if (!SharedMethods.TryGetScsiHandle(scsiAddress, FileFlagsAndAttributes.Normal, out var scsiHandle))
@@ -174,10 +189,25 @@ namespace DiskInfoToolkit.NVMe
 
         public static bool DoIdentifyDeviceNVMeIntelRst(Storage storage, IntPtr handle, out IdentifyDevice identifyDevice)
         {
-            if (!SharedMethods.GetScsiAddress(handle, out var scsiAddress))
+            return DoIdentifyDeviceNVMeIntelRst(storage, handle, -1, -1, out identifyDevice);
+        }
+
+        public static bool DoIdentifyDeviceNVMeIntelRst(Storage storage, IntPtr handle, int scsiPort, int scsiTarget, out IdentifyDevice identifyDevice)
+        {
+            var scsiAddress = new SCSI_ADDRESS();
+
+            if (scsiPort >= 0 && scsiTarget >= 0)
             {
-                identifyDevice = null;
-                return false;
+                scsiAddress.PortNumber = (byte)scsiPort;
+                scsiAddress.TargetId = (byte)scsiTarget;
+            }
+            else
+            {
+                if (!SharedMethods.GetScsiAddress(handle, out scsiAddress))
+                {
+                    identifyDevice = null;
+                    return false;
+                }
             }
 
             if (!SharedMethods.TryGetScsiHandle(scsiAddress, out var scsiHandle))

@@ -953,6 +953,18 @@ namespace DiskInfoToolkit.Identifiers
             }
         }
 
+        internal static bool DoIdentifyDeviceCsmi(Storage storage, IntPtr handle, CSMI_SAS_PHY_ENTITY sasPhyEntity, out IdentifyDevice identifyDevice)
+        {
+            var buffer = new byte[InteropConstants.IDENTIFY_BUFFER_SIZE];
+
+            var ok = ATAMethods.SendAtaCommandCsmi(handle, sasPhyEntity, InteropConstants.SMART_CMD, InteropConstants.READ_THRESHOLDS, 0x00, buffer);
+
+            identifyDevice = new IdentifyDevice();
+            Marshal.Copy(buffer, 0, identifyDevice.IdentifyDevicePtr, identifyDevice.PtrSize);
+
+            return ok;
+        }
+
         #endregion
     }
 }

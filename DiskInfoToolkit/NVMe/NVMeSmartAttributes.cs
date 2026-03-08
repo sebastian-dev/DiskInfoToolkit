@@ -117,9 +117,19 @@ namespace DiskInfoToolkit.NVMe
 
         internal static bool GetSmartAttributeNVMeIntelRst(Storage storage, IntPtr handle, byte[] buffer)
         {
-            if (!SharedMethods.GetScsiAddress(handle, out var scsiAddress))
+            var scsiAddress = new SCSI_ADDRESS();
+
+            if (storage.ScsiPort >= 0 && storage.ScsiTargetID >= 0)
             {
-                return false;
+                scsiAddress.PortNumber = storage.ScsiPort;
+                scsiAddress.TargetId = storage.ScsiTargetID;
+            }
+            else
+            {
+                if (!SharedMethods.GetScsiAddress(handle, out scsiAddress))
+                {
+                    return false;
+                }
             }
 
             if (!SharedMethods.TryGetScsiHandle(scsiAddress, out var scsiHandle))
@@ -174,9 +184,19 @@ namespace DiskInfoToolkit.NVMe
 
         internal static bool GetSmartAttributeNVMeIntelVroc(Storage storage, IntPtr handle, byte[] buffer)
         {
-            if (!SharedMethods.GetScsiAddress(handle, out var scsiAddress))
+            var scsiAddress = new SCSI_ADDRESS();
+
+            if (storage.ScsiPort >= 0 && storage.ScsiTargetID >= 0)
             {
-                return false;
+                scsiAddress.PortNumber = storage.ScsiPort;
+                scsiAddress.TargetId = storage.ScsiTargetID;
+            }
+            else
+            {
+                if (!SharedMethods.GetScsiAddress(handle, out scsiAddress))
+                {
+                    return false;
+                }
             }
 
             if (!SharedMethods.TryGetScsiHandle(scsiAddress, FileFlagsAndAttributes.Normal, out var scsiHandle))

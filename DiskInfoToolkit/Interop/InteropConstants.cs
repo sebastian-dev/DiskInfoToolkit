@@ -25,6 +25,12 @@ namespace DiskInfoToolkit.Interop
             RAID_SIG_STR_ARR       = Encoding.ASCII.GetBytes(RAID_SIG_STR.ToCharArray());
         }
 
+        public const int ERROR_INVALID_FUNCTION = 1;
+        public const int ERROR_NOT_SUPPORTED    = 50;
+        public const int ERROR_DEV_NOT_EXIST    = 55;
+
+        public const int MAX_SEARCH_SCSI_PORT = 16;
+
         public const int SCSI_IOCTL_DATA_OUT = 0;
         public const int SCSI_IOCTL_DATA_IN  = 1;
 

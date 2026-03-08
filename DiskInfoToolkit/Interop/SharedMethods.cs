@@ -67,6 +67,20 @@ namespace DiskInfoToolkit.Interop
             return TryGetScsiHandle(scsiAddress, (FileFlagsAndAttributes)0, out scsiHandle);
         }
 
+        public static bool TryGetCsmiHandle(int scsiPort, out IntPtr csmiHandle)
+        {
+            var csmiStr = $@"\\.\Scsi{scsiPort}:";
+
+            csmiHandle = SafeFileHandler.OpenHandle(csmiStr);
+
+            if (!SafeFileHandler.IsHandleValid(csmiHandle))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         #endregion
     }
 }

@@ -11,8 +11,10 @@
 
 using BlackSharp.Core.Converters;
 using BlackSharp.Core.Extensions;
+using BlackSharp.Core.Interop.Windows.Utilities;
 using DiskInfoToolkit.Enums.Interop;
 using DiskInfoToolkit.HardDrive;
+using DiskInfoToolkit.Identifiers;
 using DiskInfoToolkit.Interop;
 using DiskInfoToolkit.Interop.Enums;
 using DiskInfoToolkit.Interop.Realtek;
@@ -23,6 +25,7 @@ using DiskInfoToolkit.PCI;
 using DiskInfoToolkit.Smart;
 using DiskInfoToolkit.SSD;
 using DiskInfoToolkit.Utilities;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DiskInfoToolkit.Disk
@@ -309,6 +312,162 @@ namespace DiskInfoToolkit.Disk
             LogSimple.LogTrace($"{nameof(AddDiskNVMe)}: success.");
 
             storage.IsSSD = storage.IsNVMe = true;
+
+            return true;
+        }
+
+        internal static bool AddDiskCsmi(Storage storage, int scsiPort)
+        {
+            LogSimple.LogTrace($"{nameof(AddDiskCsmi)}: {nameof(scsiPort)} = '{scsiPort}'.");
+
+            if (!SharedMethods.TryGetCsmiHandle(scsiPort, out var csmiHandle))
+            {
+                return false;
+            }
+
+            try
+            {
+                var driver = new CSMI_SAS_DRIVER_INFO_BUFFER();
+
+                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_DRIVER_INFO, ref driver.IoctlHeader, Marshal.SizeOf<CSMI_SAS_DRIVER_INFO_BUFFER>()))
+                {
+                    LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_DRIVER_INFO} failed.");
+                    return false;
+                }
+
+                var raid = new CSMI_SAS_RAID_INFO_BUFFER();
+                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_RAID_INFO, ref raid.IoctlHeader, Marshal.SizeOf<CSMI_SAS_RAID_INFO_BUFFER>()))
+                {
+                    LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_RAID_INFO} failed.");
+                    return false;
+                }
+
+                var size = Marshal.SizeOf<CSMI_SAS_RAID_CONFIG_BUFFER>()
+                         + Marshal.SizeOf<CSMI_SAS_RAID_DRIVES>()
+                         + raid.Information.uNumRaidSets
+                         + raid.Information.uMaxDrivesPerSet;
+
+                var raidConfigBuffer = new CSMI_SAS_RAID_CONFIG_BUFFER();
+
+                var raidDrives = new List<byte>();
+
+                for (uint i = 0; i < raid.Information.uNumRaidSets; ++i)
+                {
+                    raidConfigBuffer.Configuration.uRaidSetIndex = i;
+
+                    if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_RAID_CONFIG, ref raidConfigBuffer.IoctlHeader, (int)size))
+                    {
+                        LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_RAID_CONFIG} failed.");
+                        return false;
+                    }
+                    else
+                    {
+                        for (uint j = 0; j < raid.Information.uMaxDrivesPerSet; ++j)
+                        {
+                            if (raidConfigBuffer.Configuration.Union.Drives[j].bModel[0] != '\0')
+                            {
+                                raidDrives.Add(raidConfigBuffer.Configuration.Union.Drives[j].bSASAddress[2]);
+                            }
+                        }
+                    }
+                }
+
+                var phyInfo = new CSMI_SAS_PHY_INFO();
+                var phyInfoBuf = new CSMI_SAS_PHY_INFO_BUFFER();
+
+                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_PHY_INFO, ref phyInfoBuf.IoctlHeader, Marshal.SizeOf<CSMI_SAS_PHY_INFO_BUFFER>()))
+                {
+                    LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_PHY_INFO} failed.");
+                    return false;
+                }
+
+                phyInfo = phyInfoBuf.Information;
+
+                var driverVersion = new Version(
+                    driver.Information.usMajorRevision,
+                    driver.Information.usMinorRevision,
+                    driver.Information.usBuildRevision,
+                    driver.Information.usReleaseRevision);
+
+                var csmiVersion = new Version(
+                    driver.Information.usCSMIMajorRevision,
+                    driver.Information.usCSMIMinorRevision);
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Driver name: '{driver.Information.szName}'");
+                sb.AppendLine($"Revision: {driverVersion}");
+                sb.AppendLine($"CSMI Revision: {csmiVersion}");
+
+                var identify = new IdentifyDevice();
+
+                //AMD-RAIDXpert2 support
+                if (driver.Information.szName == CSMIConstants.AMDRaidXpertDriverName)
+                {
+                    LogSimple.LogTrace($"{nameof(AddDiskCsmi)}: AMD-RAIDXpert2 driver detected.");
+
+                    for (uint i = 0; i < raid.Information.uMaxPhysicalDrives; ++i)
+                    {
+                        if (i >= phyInfo.bNumberOfPhys)
+                        {
+                            phyInfo.Phy[i] = phyInfo.Phy[0];
+                        }
+
+                        phyInfo.Phy[i].Attached.bPhyIdentifier = phyInfo.Phy[i].bPortIdentifier = (byte)i;
+                    }
+
+                    phyInfo.bNumberOfPhys = (byte)raid.Information.uMaxPhysicalDrives;
+                }
+                else
+                {
+                    //Intel VROC NVMe RAID support
+                    for (int j = 0; j < raidDrives.Count; ++j)
+                    {
+                        if (NVMeSmartIdentifier.DoIdentifyDeviceNVMeIntelVroc(storage, IntPtr.Zero, scsiPort, raidDrives[j], out identify))
+                        {
+                            storage.ScsiPort = (byte)scsiPort;
+                            storage.ScsiTargetID = raidDrives[j];
+
+                            AddDiskNVMe(storage, csmiHandle, identify, COMMAND_TYPE.CMD_TYPE_NVME_INTEL_VROC);
+                        }
+                    }
+
+                    //Intel RST NVMe RAID support
+                    for (int j = 0; j < raidDrives.Count; ++j)
+                    {
+                        if (NVMeSmartIdentifier.DoIdentifyDeviceNVMeIntelRst(storage, IntPtr.Zero, scsiPort, raidDrives[j], out identify))
+                        {
+                            storage.ScsiPort = (byte)scsiPort;
+                            storage.ScsiTargetID = raidDrives[j];
+
+                            AddDiskNVMe(storage, csmiHandle, identify, COMMAND_TYPE.CMD_TYPE_NVME_INTEL_RST);
+                        }
+                    }
+                }
+
+                //SATA support
+                if (phyInfo.bNumberOfPhys <= phyInfo.Phy.Length)
+                {
+                    for (int i = 0; i < phyInfo.bNumberOfPhys; ++i)
+                    {
+                        for (int j = 0; j < raidDrives.Count; ++j)
+                        {
+                            if (raidDrives[j] == phyInfo.Phy[i].Attached.bSASAddress[2])
+                            {
+                                if (DeviceIdentifier.DoIdentifyDeviceCsmi(storage, csmiHandle, phyInfo.Phy[i], out identify))
+                                {
+                                    AddDisk(storage, csmiHandle, 0xA0, COMMAND_TYPE.CMD_TYPE_CSMI, identify, phyInfo.Phy[i]);
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                SafeFileHandler.CloseHandle(csmiHandle);
+            }
 
             return true;
         }
@@ -998,6 +1157,66 @@ namespace DiskInfoToolkit.Disk
         #endregion
 
         #region Private
+
+        static bool CsmiIoctl(IntPtr handle, uint code, ref SRB_IO_CONTROL csmiBuf, int csmiBufferSize)
+        {
+            string signature = string.Empty;
+
+            switch (code)
+            {
+                case CSMIConstants.CC_CSMI_SAS_GET_DRIVER_INFO:
+                    signature = CSMIConstants.CSMI_ALL_SIGNATURE;
+                    break;
+                case CSMIConstants.CC_CSMI_SAS_GET_PHY_INFO:
+                case CSMIConstants.CC_CSMI_SAS_STP_PASSTHRU:
+                    signature = CSMIConstants.CSMI_SAS_SIGNATURE;
+                    break;
+                case CSMIConstants.CC_CSMI_SAS_GET_RAID_INFO:
+                case CSMIConstants.CC_CSMI_SAS_GET_RAID_CONFIG:
+                    signature = CSMIConstants.CSMI_RAID_SIGNATURE;
+                    break;
+                default:
+                    return false;
+            }
+
+            //Set header
+            csmiBuf.HeaderLength = (uint)Marshal.SizeOf<SRB_IO_CONTROL>();
+
+            var sig = Encoding.ASCII.GetBytes(signature.ToCharArray());
+            Array.Copy(sig, csmiBuf.Signature, csmiBuf.Signature.Length);
+
+            csmiBuf.Timeout = CSMIConstants.CSMI_SAS_TIMEOUT;
+            csmiBuf.ControlCode = code;
+            csmiBuf.ReturnCode = 0;
+            csmiBuf.Length = (uint)(csmiBufferSize - Marshal.SizeOf<SRB_IO_CONTROL>());
+
+            var ptr = Marshal.AllocHGlobal(csmiBufferSize);
+            Marshal.StructureToPtr(csmiBuf, ptr, false);
+
+            try
+            {
+                if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, csmiBufferSize, ptr, csmiBufferSize, out _, IntPtr.Zero))
+                {
+                    var error = Marshal.GetLastWin32Error();
+
+                    if (error.AnyOf(
+                        InteropConstants.ERROR_INVALID_FUNCTION,
+                        InteropConstants.ERROR_NOT_SUPPORTED,
+                        InteropConstants.ERROR_DEV_NOT_EXIST))
+                    {
+                        return false;
+                    }
+                }
+
+                csmiBuf = Marshal.PtrToStructure<SRB_IO_CONTROL>(ptr);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+
+            return true;
+        }
 
         static bool GetSmartAttributes(Storage storage, IntPtr handle, COMMAND_TYPE command, byte[] buffer)
         {
