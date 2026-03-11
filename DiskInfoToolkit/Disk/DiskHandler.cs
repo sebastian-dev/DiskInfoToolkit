@@ -1227,7 +1227,7 @@ namespace DiskInfoToolkit.Disk
             };
 
             var sig = Encoding.ASCII.GetBytes(signature.ToCharArray());
-            Array.Copy(sig, csmiBuf.Signature, csmiBuf.Signature.Length);
+            Array.Copy(sig, csmiBuf.Signature, sig.Length);
 
             var ptr = Marshal.AllocHGlobal(buffer.Length);
 
