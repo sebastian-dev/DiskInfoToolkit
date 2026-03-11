@@ -3,34 +3,18 @@
 namespace DiskInfoToolkit.Interop.Structures
 {
     [StructLayout(LayoutKind.Sequential, Pack = 2)]
-    internal struct CSMI_SAS_RAID_DRIVES
+    internal unsafe struct CSMI_SAS_RAID_DRIVES
     {
-        public CSMI_SAS_RAID_DRIVES()
-        {
-            bModel = new byte[40];
-            bFirmware = new byte[8];
-            bSerialNumber = new byte[40];
-            bSASAddress = new byte[8];
-            bSASLun = new byte[8];
-            bReserved = new byte[15];
-        }
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 40)]
-        public byte[] bModel;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public byte[] bFirmware;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 40)]
-        public byte[] bSerialNumber;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public byte[] bSASAddress;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public byte[] bSASLun;
+        public fixed byte bModel[40];
+        public fixed byte bFirmware[8];
+        public fixed byte bSerialNumber[40];
+        public fixed byte bSASAddress[8];
+        public fixed byte bSASLun[8];
         public byte bDriveStatus;
         public byte bDriveUsage;
         public ushort usBlockSize;
         public byte bDriveType;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 15)]
-        public byte[] bReserved;
+        public fixed byte bReserved[15];
         public uint uDriveIndex;
 
         public uint TotalUserBlocksLowPart;

@@ -316,7 +316,7 @@ namespace DiskInfoToolkit.Disk
             return true;
         }
 
-        internal static bool AddDiskCsmi(Storage storage, int scsiPort)
+        internal unsafe static bool AddDiskCsmi(Storage storage, int scsiPort)
         {
             LogSimple.LogTrace($"{nameof(AddDiskCsmi)}: {nameof(scsiPort)} = '{scsiPort}'.");
 
@@ -329,33 +329,38 @@ namespace DiskInfoToolkit.Disk
             {
                 var driver = new CSMI_SAS_DRIVER_INFO_BUFFER();
 
-                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_DRIVER_INFO, ref driver.IoctlHeader, Marshal.SizeOf<CSMI_SAS_DRIVER_INFO_BUFFER>()))
+                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_DRIVER_INFO, ref driver))
                 {
                     LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_DRIVER_INFO} failed.");
                     return false;
                 }
 
                 var raid = new CSMI_SAS_RAID_INFO_BUFFER();
-                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_RAID_INFO, ref raid.IoctlHeader, Marshal.SizeOf<CSMI_SAS_RAID_INFO_BUFFER>()))
+                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_RAID_INFO, ref raid))
                 {
                     LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_RAID_INFO} failed.");
                     return false;
                 }
 
+                var driveSize = Marshal.SizeOf<CSMI_SAS_RAID_DRIVES>();
+
                 var size = Marshal.SizeOf<CSMI_SAS_RAID_CONFIG_BUFFER>()
-                         + Marshal.SizeOf<CSMI_SAS_RAID_DRIVES>()
-                         + raid.Information.uNumRaidSets
-                         + raid.Information.uMaxDrivesPerSet;
+                         + driveSize
+                         * raid.Information.uNumRaidSets
+                         * raid.Information.uMaxDrivesPerSet;
 
                 var raidConfigBuffer = new CSMI_SAS_RAID_CONFIG_BUFFER();
-
+                var buffer = new byte[size];
                 var raidDrives = new List<byte>();
 
                 for (uint i = 0; i < raid.Information.uNumRaidSets; ++i)
                 {
-                    raidConfigBuffer.Configuration.uRaidSetIndex = i;
+                    Array.Clear(buffer, 0, buffer.Length);
 
-                    if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_RAID_CONFIG, ref raidConfigBuffer.IoctlHeader, (int)size))
+                    raidConfigBuffer.Configuration.uRaidSetIndex = i;
+                    WriteStructureToBuffer(raidConfigBuffer, buffer);
+
+                    if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_RAID_CONFIG, buffer))
                     {
                         LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_RAID_CONFIG} failed.");
                         return false;
@@ -364,9 +369,20 @@ namespace DiskInfoToolkit.Disk
                     {
                         for (uint j = 0; j < raid.Information.uMaxDrivesPerSet; ++j)
                         {
-                            if (raidConfigBuffer.Configuration.Union.Drives[j].bModel[0] != '\0')
+                            var offset = Marshal.OffsetOf<CSMI_SAS_RAID_CONFIG_BUFFER>(nameof(CSMI_SAS_RAID_CONFIG_BUFFER.Configuration)).ToInt32()
+                                       + Marshal.OffsetOf<CSMI_SAS_RAID_CONFIG>(nameof(CSMI_SAS_RAID_CONFIG.Union)).ToInt32();
+
+                            var driveOffset = offset + j * driveSize;
+                            if (driveOffset + driveSize > buffer.Length)
                             {
-                                raidDrives.Add(raidConfigBuffer.Configuration.Union.Drives[j].bSASAddress[2]);
+                                break;
+                            }
+
+                            var drive = ReadStructureFromBuffer<CSMI_SAS_RAID_DRIVES>(buffer, (int)driveOffset);
+
+                            if (drive.bModel[0] != '\0')
+                            {
+                                raidDrives.Add(drive.bSASAddress[2]);
                             }
                         }
                     }
@@ -375,7 +391,7 @@ namespace DiskInfoToolkit.Disk
                 var phyInfo = new CSMI_SAS_PHY_INFO();
                 var phyInfoBuf = new CSMI_SAS_PHY_INFO_BUFFER();
 
-                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_PHY_INFO, ref phyInfoBuf.IoctlHeader, Marshal.SizeOf<CSMI_SAS_PHY_INFO_BUFFER>()))
+                if (!CsmiIoctl(csmiHandle, CSMIConstants.CC_CSMI_SAS_GET_PHY_INFO, ref phyInfoBuf))
                 {
                     LogSimple.LogTrace($"{CSMIConstants.CC_CSMI_SAS_GET_PHY_INFO} failed.");
                     return false;
@@ -1158,8 +1174,30 @@ namespace DiskInfoToolkit.Disk
 
         #region Private
 
-        static bool CsmiIoctl(IntPtr handle, uint code, ref SRB_IO_CONTROL csmiBuf, int csmiBufferSize)
+        static bool CsmiIoctl<TBuffer>(IntPtr handle, uint code, ref TBuffer buffer)
+            where TBuffer : struct
         {
+            var size = Marshal.SizeOf<TBuffer>();
+            var raw = new byte[size];
+
+            WriteStructureToBuffer(buffer, raw);
+
+            if (!CsmiIoctl(handle, code, raw))
+            {
+                return false;
+            }
+
+            buffer = ReadStructureFromBuffer<TBuffer>(raw);
+            return true;
+        }
+
+        static bool CsmiIoctl(IntPtr handle, uint code, byte[] buffer)
+        {
+            if (buffer == null || buffer.Length == 0)
+            {
+                return false;
+            }
+
             string signature = string.Empty;
 
             switch (code)
@@ -1179,23 +1217,26 @@ namespace DiskInfoToolkit.Disk
                     return false;
             }
 
-            //Set header
-            csmiBuf.HeaderLength = (uint)Marshal.SizeOf<SRB_IO_CONTROL>();
+            var csmiBuf = new SRB_IO_CONTROL()
+            {
+                HeaderLength = (uint)Marshal.SizeOf<SRB_IO_CONTROL>(),
+                Timeout = CSMIConstants.CSMI_SAS_TIMEOUT,
+                ControlCode = code,
+                ReturnCode = 0,
+                Length = (uint)(buffer.Length - Marshal.SizeOf<SRB_IO_CONTROL>()),
+            };
 
             var sig = Encoding.ASCII.GetBytes(signature.ToCharArray());
             Array.Copy(sig, csmiBuf.Signature, csmiBuf.Signature.Length);
 
-            csmiBuf.Timeout = CSMIConstants.CSMI_SAS_TIMEOUT;
-            csmiBuf.ControlCode = code;
-            csmiBuf.ReturnCode = 0;
-            csmiBuf.Length = (uint)(csmiBufferSize - Marshal.SizeOf<SRB_IO_CONTROL>());
-
-            var ptr = Marshal.AllocHGlobal(csmiBufferSize);
-            Marshal.StructureToPtr(csmiBuf, ptr, false);
+            var ptr = Marshal.AllocHGlobal(buffer.Length);
 
             try
             {
-                if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, csmiBufferSize, ptr, csmiBufferSize, out _, IntPtr.Zero))
+                Marshal.Copy(buffer, 0, ptr, buffer.Length);
+                Marshal.StructureToPtr(csmiBuf, ptr, false);
+
+                if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_SCSI_MINIPORT, ptr, buffer.Length, ptr, buffer.Length, out _, IntPtr.Zero))
                 {
                     var error = Marshal.GetLastWin32Error();
 
@@ -1208,7 +1249,7 @@ namespace DiskInfoToolkit.Disk
                     }
                 }
 
-                csmiBuf = Marshal.PtrToStructure<SRB_IO_CONTROL>(ptr);
+                Marshal.Copy(ptr, buffer, 0, buffer.Length);
             }
             finally
             {
@@ -1216,6 +1257,52 @@ namespace DiskInfoToolkit.Disk
             }
 
             return true;
+        }
+
+        static void WriteStructureToBuffer<T>(T value, byte[] buffer, int offset = 0)
+            where T : struct
+        {
+            var size = Marshal.SizeOf<T>();
+
+            if (offset < 0 || offset + size > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+
+            var ptr = Marshal.AllocHGlobal(size);
+
+            try
+            {
+                Marshal.StructureToPtr(value, ptr, false);
+                Marshal.Copy(ptr, buffer, offset, size);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+        }
+
+        static T ReadStructureFromBuffer<T>(byte[] buffer, int offset = 0)
+            where T : struct
+        {
+            var size = Marshal.SizeOf<T>();
+
+            if (offset < 0 || offset + size > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+
+            var ptr = Marshal.AllocHGlobal(size);
+
+            try
+            {
+                Marshal.Copy(buffer, offset, ptr, size);
+                return Marshal.PtrToStructure<T>(ptr);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
         }
 
         static bool GetSmartAttributes(Storage storage, IntPtr handle, COMMAND_TYPE command, byte[] buffer)

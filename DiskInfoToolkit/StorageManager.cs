@@ -160,6 +160,25 @@ namespace DiskInfoToolkit
                 }
             }
 
+            //Check for CSMI disks
+            //TODO: this currently only detects one CSMI disk per port (last one basically)
+            //this has to be adjusted if multiple CSMI disks per port should be supported
+            for (byte port = 0; port < InteropConstants.MAX_SEARCH_SCSI_PORT; ++port)
+            {
+                if (list.Any(s => s.ScsiPort == port))
+                {
+                    continue;
+                }
+
+                var csmi = new Storage(port);
+                if (!csmi.IsValid)
+                {
+                    continue;
+                }
+
+                list.Add(csmi);
+            }
+
             Storages = list;
         }
 

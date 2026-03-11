@@ -72,28 +72,11 @@ namespace DiskInfoToolkit
 
             try
             {
-                if (false == (IsValid = IdentifyStorageController()))
+                Initialize(handle);
+                if (!IsValid)
                 {
-                    LogSimple.LogTrace($"{nameof(Storage)}: {nameof(IdentifyStorageController)} failed.");
-
                     return;
                 }
-
-                if (false == (IsValid = GetDiskGeometry(handle)))
-                {
-                    LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskGeometry)} failed.");
-
-                    return;
-                }
-
-                if (false == (IsValid = GetDiskInformation(handle)))
-                {
-                    LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskInformation)} failed.");
-
-                    return;
-                }
-
-                UpdatePartitions(handle);
 
                 IsValid = IdentifyDisk(handle);
             }
@@ -102,6 +85,64 @@ namespace DiskInfoToolkit
                 SafeFileHandler.CloseHandle(handle);
             }
 
+#if DEBUG
+            sw.Stop();
+
+            LogSimple.LogDebug($"{nameof(Storage)}: Initialization of {nameof(Storage)} took {sw.Elapsed}.");
+#endif
+        }
+
+        internal Storage(byte csmiPort)
+        {
+#if DEBUG
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+#endif
+
+            if (csmiPort < 0 || csmiPort >= InteropConstants.MAX_SEARCH_SCSI_PORT)
+            {
+                IsValid = false;
+                return;
+            }
+
+            StorageController = string.Empty;
+
+            _StorageDeviceInternal = new()
+            {
+                DeviceID = $@"CSMI\PORT_{csmiPort}",
+                HardwareID = "CSMI",
+                PhysicalPath = $@"\\.\Scsi{csmiPort}:",
+            };
+
+            ScsiPort = csmiPort;
+
+            var ok = SharedMethods.TryGetCsmiHandle(csmiPort, out var handle);
+
+            try
+            {
+                if (!ok)
+                {
+                    LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is invalid.");
+
+                    IsValid = false;
+                    return;
+                }
+                else
+                {
+                    LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is open.");
+                    LogSimple.LogDebug($"{nameof(Storage)}: {nameof(_StorageDeviceInternal.PhysicalPath)} = '{_StorageDeviceInternal.PhysicalPath}'.");
+                }
+
+                _StorageDeviceInternal.DriveNumber = GetDriveNumber(handle);
+
+                Initialize(handle);
+
+                IsValid = DiskHandler.AddDiskCsmi(this, csmiPort);
+            }
+            finally
+            {
+                SafeFileHandler.CloseHandle(handle);
+            }
 #if DEBUG
             sw.Stop();
 
@@ -321,7 +362,16 @@ namespace DiskInfoToolkit
         /// </summary>
         public void Update()
         {
-            var handle = SafeFileHandler.OpenHandle(_StorageDeviceInternal.PhysicalPath);
+            IntPtr handle = IntPtr.Zero;
+
+            if (Command.AnyOf(COMMAND_TYPE.CMD_TYPE_CSMI, COMMAND_TYPE.CMD_TYPE_CSMI_PHYSICAL_DRIVE))
+            {
+                handle = SharedMethods.TryGetCsmiHandle(ScsiPort, out var csmiHandle) ? csmiHandle : IntPtr.Zero;
+            }
+            else
+            {
+                handle = SafeFileHandler.OpenHandle(_StorageDeviceInternal.PhysicalPath);
+            }
 
             DiskHandler.UpdateSmartInfo(this, handle);
 
@@ -367,6 +417,32 @@ namespace DiskInfoToolkit
         #endregion
 
         #region Private
+
+        void Initialize(IntPtr handle)
+        {
+            if (false == (IsValid = IdentifyStorageController()))
+            {
+                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(IdentifyStorageController)} failed.");
+
+                return;
+            }
+
+            if (false == (IsValid = GetDiskGeometry(handle)))
+            {
+                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskGeometry)} failed.");
+
+                return;
+            }
+
+            if (false == (IsValid = GetDiskInformation(handle)))
+            {
+                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskInformation)} failed.");
+
+                return;
+            }
+
+            UpdatePartitions(handle);
+        }
 
         void UpdatePartitions(IntPtr handle)
         {

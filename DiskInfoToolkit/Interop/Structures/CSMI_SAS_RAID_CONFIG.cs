@@ -3,12 +3,10 @@
 namespace DiskInfoToolkit.Interop.Structures
 {
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    internal struct CSMI_SAS_RAID_CONFIG
+    internal unsafe struct CSMI_SAS_RAID_CONFIG
     {
         public CSMI_SAS_RAID_CONFIG()
         {
-            bReserved = new byte[11];
-
             Union = new();
         }
 
@@ -20,8 +18,7 @@ namespace DiskInfoToolkit.Interop.Structures
         public byte bInformation;
         public byte bDriveCount;
         public byte bDataType;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 11)]
-        public byte[] bReserved;
+        public fixed byte bReserved[11];
         public uint uFailureCode;
         public uint uChangeCount;
 
