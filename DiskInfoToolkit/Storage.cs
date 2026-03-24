@@ -136,6 +136,10 @@ namespace DiskInfoToolkit
                 _StorageDeviceInternal.DriveNumber = GetDriveNumber(handle);
 
                 Initialize(handle);
+                if (!IsValid)
+                {
+                    return;
+                }
 
                 IsValid = DiskHandler.AddDiskCsmi(this, csmiPort);
             }
