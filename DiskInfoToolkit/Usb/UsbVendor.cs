@@ -3,10 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
 namespace DiskInfoToolkit.Usb
@@ -27,8 +24,7 @@ namespace DiskInfoToolkit.Usb
 
         public int ID { get; }
         public string Name { get; }
-
-        public List<UsbDevice> Devices { get; } = new();
+        public List<UsbDevice> Devices { get; } = new List<UsbDevice>();
 
         #endregion
     }

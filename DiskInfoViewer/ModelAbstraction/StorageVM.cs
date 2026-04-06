@@ -3,15 +3,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
+using Avalonia.Threading;
+using BlackSharp.Core.Collections;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DiskInfoToolkit;
-using DiskInfoToolkit.Enums.Interop;
 using DiskInfoViewer.ViewModels;
 using System.Collections.ObjectModel;
 
@@ -21,57 +19,84 @@ namespace DiskInfoViewer.ModelAbstraction
     {
         #region Constructor
 
-        public StorageVM(Storage storage)
+        public StorageVM(StorageDevice sd)
         {
-            Storage = storage;
+            _Storage = sd;
 
-            StorageController = Storage.StorageController;
-            VendorID          = Storage.VendorID         ;
-            DriveNumber       = Storage.DriveNumber      ;
-            BusType           = Storage.BusType          ;
-            Vendor            = Storage.Vendor           ;
-            TotalSize         = Storage.TotalSize        ;
-            Model             = Storage.Model            ;
-            Firmware          = Storage.Firmware         ;
-            FirmwareRev       = Storage.FirmwareRev      ;
-            SerialNumber      = Storage.SerialNumber     ;
-
-            Smart = new(storage.Smart);
-
-            IsDynamicDisk = Storage.IsDynamicDisk;
-            TotalFreeSize = Storage.TotalFreeSize;
+            StorageController = _Storage.Controller.Name;
+            DriveNumber       = (int)_Storage.StorageDeviceNumber;
+            BusType           = _Storage.BusType;
+            ControllerVendorName = _Storage.Controller.VendorName;
+            ControllerDeviceName = _Storage.Controller.DeviceName;
+            TotalSize         = _Storage.DiskSizeBytes.GetValueOrDefault();
+            Model             = _Storage.ProductName;
+            Firmware          = _Storage.ProductRevision;
+            FirmwareRev       = _Storage.ProductRevision;
+            SerialNumber      = _Storage.SerialNumber;
+            IsDynamicDisk     = _Storage.IsDynamicDisk;
+            TotalFreeSize     = _Storage.TotalPartitionFreeSpaceBytes;
         }
 
         #endregion
 
-        #region Properties
+        #region Fields
 
-        public Storage Storage { get; }
+        bool _Initialized = false;
+
+        StorageDevice _Storage;
 
         #region Fixed
 
-        public string         StorageController { get; }
-        public ushort?        VendorID          { get; }
-        public int            DriveNumber       { get; }
-        public StorageBusType BusType           { get; }
-        public string         Vendor            { get; }
-        public ulong          TotalSize         { get; }
-        public string         Model             { get; }
-        public string         Firmware          { get; }
-        public string         FirmwareRev       { get; }
-        public string         SerialNumber      { get; }
+        public string         StorageController    { get; }
+        public int            DriveNumber          { get; }
+        public StorageBusType BusType              { get; }
+        public string         ControllerVendorName { get; }
+        public string         ControllerDeviceName { get; }
+        public ulong          TotalSize            { get; }
+        public string         Model                { get; }
+        public string         Firmware             { get; }
+        public string         FirmwareRev          { get; }
+        public string         SerialNumber         { get; }
 
         [ObservableProperty]
         bool _showSerialNumber = false;
-
-        //Can add more
 
         #endregion
 
         #region Volatile
 
         [ObservableProperty]
-        SmartInfoVM _smart;
+        StorageHealthStatus? _healthStatus;
+
+        [ObservableProperty]
+        string _healthStatusReason;
+
+        [ObservableProperty]
+        bool _isSmartSupported;
+
+        [ObservableProperty]
+        int? _temperature;
+
+        [ObservableProperty]
+        int? _temperatureWarning;
+
+        [ObservableProperty]
+        int? _temperatureCritical;
+
+        [ObservableProperty]
+        int? _life;
+
+        [ObservableProperty]
+        ulong? _hostReads;
+
+        [ObservableProperty]
+        ulong? _hostWrites;
+
+        [ObservableProperty]
+        ulong? _powerOnCount;
+
+        [ObservableProperty]
+        ulong? _powerOnHours;
 
         [ObservableProperty]
         bool _isDynamicDisk;
@@ -82,61 +107,109 @@ namespace DiskInfoViewer.ModelAbstraction
         [ObservableProperty]
         ObservableCollection<PartitionVM> _partitions = new();
 
+        [ObservableProperty]
+        ObservableCollectionEx<SmartAttributeVM> _smartAttributes = new();
+
         #endregion
 
         #endregion
 
         #region Public
 
+        public bool EqualsStorage(StorageDevice other)
+        {
+            return _Storage == other;
+        }
+
         public void Update()
         {
-            //Update actual Storage object
-            Storage.Update();
-
-            //Update VM
-            Smart.Update();
-
-            //Partitions can be changed, added or removed
-
-            //Get added partitions
-            var added = Storage.Partitions
-                .Where(p => !Partitions.Any(vm => vm.PartitionNumber == p.PartitionNumber))
-                .ToList();
-
-            //Get removed partitions
-            var removed = Partitions
-                .Where(vm => !Storage.Partitions.Any(p => p.PartitionNumber == vm.PartitionNumber))
-                .ToList();
-
-            //Update existing first
-            foreach (var partition in Partitions)
+            //Update disk
+            if (!Storage.Refresh(_Storage))
             {
-                var found = Storage.Partitions.Find(p => p.PartitionNumber == partition.PartitionNumber);
-
-                //Exists
-                if (found != null)
+                if (!_Initialized)
                 {
-                    partition.Update(found);
+                    _Initialized = true;
+                }
+                else
+                {
+                    //No changes
+                    return;
                 }
             }
 
-            //Add new partitions
-            foreach (var newPart in added)
+            Dispatcher.UIThread.Invoke(() =>
             {
-                var partition = new PartitionVM();
-                partition.Update(newPart);
+                //Update volatile properties
+                HealthStatus        = _Storage.HealthStatus;
+                HealthStatusReason  = _Storage.HealthStatusReason;
+                IsSmartSupported    = _Storage.SupportsSmart;
 
-                Partitions.Add(partition);
-            }
+                Temperature         = _Storage.Temperature;
+                TemperatureWarning  = _Storage.TemperatureWarning;
+                TemperatureCritical = _Storage.TemperatureCritical;
+                Life                = _Storage.Health;
+                HostReads           = _Storage.HostReads;
+                HostWrites          = _Storage.HostWrites;
+                PowerOnCount        = _Storage.PowerOnCount;
+                PowerOnHours        = _Storage.PowerOnHours;
+                IsDynamicDisk       = _Storage.IsDynamicDisk;
+                TotalFreeSize       = _Storage.TotalPartitionFreeSpaceBytes;
 
-            //Remove partitions
-            foreach (var remove in removed)
-            {
-                Partitions.Remove(remove);
-            }
+                //Partitions can be changed, added or removed
 
-            IsDynamicDisk = Storage.IsDynamicDisk;
-            TotalFreeSize = Storage.Partitions.Any(p => p.IsOtherOperatingSystemPartition) ? null : Storage.TotalFreeSize;
+                //Get added partitions
+                var added = _Storage.Partitions
+                    .Where(p => !Partitions.Any(vm => vm.EqualsPartition(p)))
+                    .ToList();
+
+                //Get removed partitions
+                var removed = Partitions
+                    .Where(vm => !_Storage.Partitions.Any(p => vm.EqualsPartition(p)))
+                    .ToList();
+
+                //Update existing first
+                foreach (var partition in Partitions)
+                {
+                    var found = _Storage.Partitions.Find(partition.EqualsPartition);
+
+                    //Exists
+                    if (found != null)
+                    {
+                        partition.Update(found);
+                    }
+                }
+
+                //Add new partitions
+                foreach (var newPart in added)
+                {
+                    var partition = new PartitionVM(newPart);
+                    Partitions.Add(partition);
+                }
+
+                //Remove partitions
+                foreach (var remove in removed)
+                {
+                    Partitions.Remove(remove);
+                }
+
+                //Update attributes
+                foreach (var attribute in _Storage.SmartAttributes)
+                {
+                    //Try to find attribute
+                    var found = SmartAttributes.Find(sa => sa.EqualsSmartAttribute(attribute));
+
+                    //Found attribute, update it
+                    if (found != null)
+                    {
+                        found.Update(attribute);
+                    }
+                    else //Not found, add it
+                    {
+                        var vm = new SmartAttributeVM(attribute);
+                        SmartAttributes.Add(vm);
+                    }
+                }
+            });
         }
 
         #endregion

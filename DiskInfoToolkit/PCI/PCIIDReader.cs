@@ -3,10 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
 using DiskInfoToolkit.Utilities;
@@ -30,15 +27,48 @@ namespace DiskInfoToolkit.PCI
 
         const string PCIIDFileName = "pci.ids.gz";
 
-        static Regex _RegexNormal = new Regex(@"^([0-9A-Fa-f]+|\d+)\s\s(.+)$");
-        static Regex _RegexSub    = new Regex(@"^([0-9A-Fa-f]+|\d+)\s([0-9A-Fa-f]+|\d+)\s\s(.+)$");
+        static Regex _regexNormal = new Regex(@"^([0-9A-Fa-f]+|\d+)\s\s(.+)$");
+        static Regex _regexSub = new Regex(@"^([0-9A-Fa-f]+|\d+)\s([0-9A-Fa-f]+|\d+)\s\s(.+)$");
+        static List<PCIVendor> _vendors = new List<PCIVendor>();
 
         #endregion
 
         #region Properties
 
-        static List<PCIVendor> _Vendors = new();
-        public static IReadOnlyList<PCIVendor> Vendors => _Vendors;
+        public static IReadOnlyList<PCIVendor> Vendors => _vendors;
+
+        #endregion
+
+        #region Public
+
+        public static bool TryGetVendorAndDeviceName(ushort vendorId, ushort deviceId, out string vendorName, out string deviceName)
+        {
+            vendorName = string.Empty;
+            deviceName = string.Empty;
+
+            foreach (var vendor in _vendors)
+            {
+                if (vendor.ID != vendorId)
+                {
+                    continue;
+                }
+
+                vendorName = vendor.Name ?? string.Empty;
+
+                foreach (var device in vendor.Devices)
+                {
+                    if (device.ID == deviceId)
+                    {
+                        deviceName = device.Name ?? string.Empty;
+                        break;
+                    }
+                }
+
+                return !string.IsNullOrWhiteSpace(vendorName) || !string.IsNullOrWhiteSpace(deviceName);
+            }
+
+            return false;
+        }
 
         #endregion
 
@@ -48,87 +78,72 @@ namespace DiskInfoToolkit.PCI
         {
             string resourceName = $"{nameof(DiskInfoToolkit)}.Resources.{PCIIDFileName}";
 
-            try
+            using (var stream = ResourceExtractor.GetResourceFileGZipStream(resourceName))
             {
-                using (var stream = ResourceExtractor.GetResourceFileGZipStream(resourceName))
+                if (stream == null)
                 {
-                    //Resource is good
-                    if (stream != null)
+                    return;
+                }
+
+                using (var reader = new StreamReader(stream))
+                {
+                    string rawLine;
+                    PCIVendor vendor = null;
+                    PCIDevice device = null;
+
+                    while ((rawLine = reader.ReadLine()) != null)
                     {
-                        using (var reader = new StreamReader(stream))
+                        if (rawLine.StartsWith("#", StringComparison.Ordinal) || rawLine.Length == 0)
                         {
-                            string rawLine = null;
+                            continue;
+                        }
 
-                            PCIVendor vendor = null;
-                            PCIDevice device = null;
+                        var lineValues = GetLineValues(rawLine.Trim());
+                        if (lineValues == null)
+                        {
+                            continue;
+                        }
 
-                            while ((rawLine = reader.ReadLine()) != null)
+                        if (rawLine.StartsWith("\t\t", StringComparison.Ordinal))
+                        {
+                            if (device != null)
                             {
-                                //Skip comments and empty lines
-                                if (rawLine.StartsWith("#") || rawLine.Length == 0)
-                                {
-                                    continue;
-                                }
-
-                                var lineValues = GetLineValues(rawLine.Trim());
-
-                                if (lineValues == null)
-                                {
-                                    continue;
-                                }
-
-                                if (rawLine.StartsWith("\t\t")) //SubDevice
-                                {
-                                    if (device != null)
-                                    {
-                                        device.SubDevices.Add(new(lineValues.Item1, lineValues.Item2, lineValues.Item3));
-                                    }
-                                }
-                                else if (rawLine.StartsWith("\t")) //Device
-                                {
-                                    if (vendor != null)
-                                    {
-                                        device = new(lineValues.Item1, lineValues.Item3);
-
-                                        vendor.Devices.Add(device);
-                                    }
-                                }
-                                else //Vendor
-                                {
-                                    vendor = new(lineValues.Item1, lineValues.Item3);
-
-                                    _Vendors.Add(vendor);
-                                }
+                                device.SubDevices.Add(new PCISubDevice(lineValues.Item1, lineValues.Item2, lineValues.Item3));
                             }
+                        }
+                        else if (rawLine.StartsWith("\t", StringComparison.Ordinal))
+                        {
+                            if (vendor != null)
+                            {
+                                device = new PCIDevice(lineValues.Item1, lineValues.Item3);
+                                vendor.Devices.Add(device);
+                            }
+                        }
+                        else
+                        {
+                            vendor = new PCIVendor(lineValues.Item1, lineValues.Item3);
+                            _vendors.Add(vendor);
                         }
                     }
                 }
-            }
-            catch (Exception)
-            {
-                throw;
             }
         }
 
         static Tuple<int, int, string> GetLineValues(string line)
         {
-            var match = _RegexNormal.Match(line);
-
+            var match = _regexNormal.Match(line);
             if (match.Success)
             {
-                int.TryParse(match.Groups[1].Value, NumberStyles.HexNumber, null, out var vendor);
-
-                return new(vendor, -1, match.Groups[2].Value);
+                int.TryParse(match.Groups[1].Value, NumberStyles.HexNumber, null, out int vendor);
+                return Tuple.Create(vendor, -1, match.Groups[2].Value);
             }
 
-            match = _RegexSub.Match(line);
-
+            match = _regexSub.Match(line);
             if (match.Success)
             {
-                int.TryParse(match.Groups[1].Value, NumberStyles.HexNumber, null, out var vendor);
-                int.TryParse(match.Groups[2].Value, NumberStyles.HexNumber, null, out var device);
-
-                return new(vendor, device, match.Groups[3].Value);
+                int.TryParse(match.Groups[1].Value, NumberStyles.HexNumber, null, out int vendor);
+                int.TryParse(match.Groups[2].Value, NumberStyles.HexNumber, null, out int device);
+                return Tuple.Create(vendor, device, match.Groups[3].Value);
             }
 
             return null;

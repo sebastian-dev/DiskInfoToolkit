@@ -3,13 +3,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
 using System.IO.Compression;
+using System.Reflection;
 
 namespace DiskInfoToolkit.Utilities
 {
@@ -19,13 +17,11 @@ namespace DiskInfoToolkit.Utilities
 
         public static GZipStream GetResourceFileGZipStream(string resourceName)
         {
-            var assemblyWithDriverResource = typeof(ResourceExtractor).Assembly;
+            var assembly = typeof(ResourceExtractor).Assembly;
 
             try
             {
-                Stream stream = assemblyWithDriverResource.GetManifestResourceStream(resourceName);
-
-                //Resource is good
+                var stream = assembly.GetManifestResourceStream(resourceName);
                 if (stream != null)
                 {
                     return new GZipStream(stream, CompressionMode.Decompress);

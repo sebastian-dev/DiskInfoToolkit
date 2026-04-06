@@ -21,28 +21,28 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
     - name: Setup MSBuild on Windows
       if: runner.os == 'Windows'
-      uses: microsoft/setup-msbuild@v2
+      uses: microsoft/setup-msbuild@v3
       with:
         msbuild-architecture: x64
 
     - name: Install .NET Core 8
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 8.0.x
 
     - name: Install .NET Core 9
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 9.0.x
 
     - name: Install .NET Core 10
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 10.0.x
 
@@ -66,34 +66,9 @@ jobs:
     - name: Run Unit Tests
       run: dotnet test
 
-    - name: Publish net472 for Windows
+    - name: Publish net8 for Windows
       if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
-        name: DiskInfoToolkit-net472
-        path: bin/Release/net472
-
-    - name: Publish net481 for Windows
-      if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v4
-      with:
-        name: DiskInfoToolkit-net481
-        path: bin/Release/net481
-
-    - name: Publish net8
-      uses: actions/upload-artifact@v4
-      with:
-        name: DiskInfoToolkit-net8
-        path: bin/Release/net8
-
-    - name: Publish net9
-      uses: actions/upload-artifact@v4
-      with:
-        name: DiskInfoToolkit-net9
-        path: bin/Release/net9
-
-    - name: Publish net10
-      uses: actions/upload-artifact@v4
-      with:
-        name: DiskInfoToolkit-net10
-        path: bin/Release/net10
+        name: DiskInfoToolkit-ConsoleOutputTest-net8
+        path: ConsoleOutputTest/bin/Release/net8.0

@@ -1,0 +1,729 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Smart.Attribute.AdaptiveReadRetryAttempts" xml:space="preserve">
+    <value>Adaptive Read Retry Attempts</value>
+  </data>
+  <data name="Smart.Attribute.AirflowTemperature" xml:space="preserve">
+    <value>Airflow Temperature</value>
+  </data>
+  <data name="Smart.Attribute.AvailableReservedSpace" xml:space="preserve">
+    <value>Available Reserved Space</value>
+  </data>
+  <data name="Smart.Attribute.AvailableSpare" xml:space="preserve">
+    <value>Available Spare</value>
+  </data>
+  <data name="Smart.Attribute.AvailableSpareThreshold" xml:space="preserve">
+    <value>Available Spare Threshold</value>
+  </data>
+  <data name="Smart.Attribute.AverageEraseCount" xml:space="preserve">
+    <value>Average Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.AverageEraseCountMaxEraseCount" xml:space="preserve">
+    <value>Average Erase Count, Max Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.AverageNANDEraseCount" xml:space="preserve">
+    <value>Average NAND Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.AveragePECycles" xml:space="preserve">
+    <value>Average P/E Cycles</value>
+  </data>
+  <data name="Smart.Attribute.BackgroundProgramPageCount" xml:space="preserve">
+    <value>Background Program Page Count</value>
+  </data>
+  <data name="Smart.Attribute.BadBlockCount" xml:space="preserve">
+    <value>Initial Bad Block Count</value>
+  </data>
+  <data name="Smart.Attribute.BadBlockFullFlag" xml:space="preserve">
+    <value>Bad Block Full Flag</value>
+  </data>
+  <data name="Smart.Attribute.BadClusterTableCount" xml:space="preserve">
+    <value>Bad Cluster Table Count</value>
+  </data>
+  <data name="Smart.Attribute.BitErrorCount" xml:space="preserve">
+    <value>Bit Error Count</value>
+  </data>
+  <data name="Smart.Attribute.CRCErrorCount" xml:space="preserve">
+    <value>UltraDMA CRC Error Count</value>
+  </data>
+  <data name="Smart.Attribute.CapacitorHealth" xml:space="preserve">
+    <value>Capacitor Health</value>
+  </data>
+  <data name="Smart.Attribute.CleanShutdownCount" xml:space="preserve">
+    <value>Clean Shutdown Count</value>
+  </data>
+  <data name="Smart.Attribute.CommandTimeout" xml:space="preserve">
+    <value>Command Timeout</value>
+  </data>
+  <data name="Smart.Attribute.CompositeTemperature" xml:space="preserve">
+    <value>Composite Temperature</value>
+  </data>
+  <data name="Smart.Attribute.ControllerBusyTime" xml:space="preserve">
+    <value>Controller Busy Time</value>
+  </data>
+  <data name="Smart.Attribute.CriticalCompositeTemperatureTime" xml:space="preserve">
+    <value>Critical Composite Temperature Time</value>
+  </data>
+  <data name="Smart.Attribute.CriticalWarning" xml:space="preserve">
+    <value>Critical Warning</value>
+  </data>
+  <data name="Smart.Attribute.CumulativeProgramNANDPages" xml:space="preserve">
+    <value>Cumulative Program NAND Pages</value>
+  </data>
+  <data name="Smart.Attribute.CurrentHeliumLevel" xml:space="preserve">
+    <value>Current Helium Level</value>
+  </data>
+  <data name="Smart.Attribute.DASPolarity" xml:space="preserve">
+    <value>DAS Polarity</value>
+  </data>
+  <data name="Smart.Attribute.DRAM1BitErrorCount" xml:space="preserve">
+    <value>DRAM 1 bit Error Count</value>
+  </data>
+  <data name="Smart.Attribute.DataAddressMarkError" xml:space="preserve">
+    <value>Data Address Mark Error</value>
+  </data>
+  <data name="Smart.Attribute.DeviceCapacity" xml:space="preserve">
+    <value>Device Capacity (NAND)</value>
+  </data>
+  <data name="Smart.Attribute.DiskShift" xml:space="preserve">
+    <value>Disk Shift</value>
+  </data>
+  <data name="Smart.Attribute.DriveLifeProtectionStatus" xml:space="preserve">
+    <value>Drive Life Protection Status</value>
+  </data>
+  <data name="Smart.Attribute.ECCBitCorrectionCount" xml:space="preserve">
+    <value>Cumulative ECC Bit Correction Count</value>
+  </data>
+  <data name="Smart.Attribute.ECCBitsCorrected" xml:space="preserve">
+    <value>ECC Bits Corrected</value>
+  </data>
+  <data name="Smart.Attribute.ECCCumulativeThresholdEvents" xml:space="preserve">
+    <value>ECC Cumulative Threshold Events</value>
+  </data>
+  <data name="Smart.Attribute.ECCErrorRate" xml:space="preserve">
+    <value>ECC Error Rate</value>
+  </data>
+  <data name="Smart.Attribute.ECCFailRecord" xml:space="preserve">
+    <value>ECC Fail Record</value>
+  </data>
+  <data name="Smart.Attribute.EndToEndError" xml:space="preserve">
+    <value>End-to-End Error</value>
+  </data>
+  <data name="Smart.Attribute.EndToEndErrorsCorrected" xml:space="preserve">
+    <value>End-to-End Data Errors Corrected</value>
+  </data>
+  <data name="Smart.Attribute.EraseFailCount" xml:space="preserve">
+    <value>Erase Fail Count</value>
+  </data>
+  <data name="Smart.Attribute.EraseFailCountInWorstDie" xml:space="preserve">
+    <value>Erase Fail Count Worst Die</value>
+  </data>
+  <data name="Smart.Attribute.EraseFailCountWorstCase" xml:space="preserve">
+    <value>Erase Fail Count (Worst Case)</value>
+  </data>
+  <data name="Smart.Attribute.EraseFailureBlockCount" xml:space="preserve">
+    <value>Erase Failure Block Count</value>
+  </data>
+  <data name="Smart.Attribute.ErrorCorrectionCount" xml:space="preserve">
+    <value>Error Correction Count</value>
+  </data>
+  <data name="Smart.Attribute.ErrorDetection" xml:space="preserve">
+    <value>Error Detection</value>
+  </data>
+  <data name="Smart.Attribute.FirmwareVersion" xml:space="preserve">
+    <value>Firmware Version Information</value>
+  </data>
+  <data name="Smart.Attribute.FlashReadSectorCount" xml:space="preserve">
+    <value>Flash Read Sector Count</value>
+  </data>
+  <data name="Smart.Attribute.FlashWriteSectorCount" xml:space="preserve">
+    <value>Flash Write Sector Count</value>
+  </data>
+  <data name="Smart.Attribute.FlyingHeight" xml:space="preserve">
+    <value>Flying Height</value>
+  </data>
+  <data name="Smart.Attribute.FreeFallProtection" xml:space="preserve">
+    <value>Free Fall Protection</value>
+  </data>
+  <data name="Smart.Attribute.FreeSpace" xml:space="preserve">
+    <value>Free Space</value>
+  </data>
+  <data name="Smart.Attribute.GDN" xml:space="preserve">
+    <value>GDN</value>
+  </data>
+  <data name="Smart.Attribute.GMRHeadAmplitude" xml:space="preserve">
+    <value>GMR Head Amplitude</value>
+  </data>
+  <data name="Smart.Attribute.GSenseErrorRate" xml:space="preserve">
+    <value>G-Sense Error Rate</value>
+  </data>
+  <data name="Smart.Attribute.GigabytesErased" xml:space="preserve">
+    <value>Gigabytes Erased</value>
+  </data>
+  <data name="Smart.Attribute.GoodBlockCountSystemBlockCount" xml:space="preserve">
+    <value>Good Block Count, System Block Count</value>
+  </data>
+  <data name="Smart.Attribute.GrownBadBlocks" xml:space="preserve">
+    <value>Grown Bad Blocks</value>
+  </data>
+  <data name="Smart.Attribute.HaltSystemIDFlashID" xml:space="preserve">
+    <value>Halt System ID, Flash ID</value>
+  </data>
+  <data name="Smart.Attribute.HardwareECCRecovered" xml:space="preserve">
+    <value>Hardware ECC recovered</value>
+  </data>
+  <data name="Smart.Attribute.HeadFlyingHours" xml:space="preserve">
+    <value>Head Flying Hours</value>
+  </data>
+  <data name="Smart.Attribute.HeliumConditionLower" xml:space="preserve">
+    <value>Helium Condition Lower</value>
+  </data>
+  <data name="Smart.Attribute.HeliumConditionUpper" xml:space="preserve">
+    <value>Helium Condition Upper</value>
+  </data>
+  <data name="Smart.Attribute.HighFlyWrites" xml:space="preserve">
+    <value>High Fly Writes</value>
+  </data>
+  <data name="Smart.Attribute.HostDataRead" xml:space="preserve">
+    <value>Total Host Reads</value>
+  </data>
+  <data name="Smart.Attribute.HostDataWritten" xml:space="preserve">
+    <value>Total Host Writes</value>
+  </data>
+  <data name="Smart.Attribute.HostProgramPageCount" xml:space="preserve">
+    <value>Host Program Page Count</value>
+  </data>
+  <data name="Smart.Attribute.HostReadCommands" xml:space="preserve">
+    <value>Host Read Commands</value>
+  </data>
+  <data name="Smart.Attribute.HostWriteCommands" xml:space="preserve">
+    <value>Host Write Commands</value>
+  </data>
+  <data name="Smart.Attribute.IOErrorDetectionCodeErrors" xml:space="preserve">
+    <value>Reported I/O Error Detection Code Errors</value>
+  </data>
+  <data name="Smart.Attribute.InWarranty" xml:space="preserve">
+    <value>In Warranty</value>
+  </data>
+  <data name="Smart.Attribute.LifetimePS3EntryCount" xml:space="preserve">
+    <value>Lifetime PS3 Entry Count</value>
+  </data>
+  <data name="Smart.Attribute.LifetimePS4EntryCount" xml:space="preserve">
+    <value>Lifetime PS4 Entry Count</value>
+  </data>
+  <data name="Smart.Attribute.LifetimeUsed" xml:space="preserve">
+    <value>Percent Lifetime Used</value>
+  </data>
+  <data name="Smart.Attribute.LoadFriction" xml:space="preserve">
+    <value>Load Friction</value>
+  </data>
+  <data name="Smart.Attribute.LoadInTime" xml:space="preserve">
+    <value>Load 'In'-time</value>
+  </data>
+  <data name="Smart.Attribute.LoadUnloadCycleCount" xml:space="preserve">
+    <value>Load/Unload Cycle Count</value>
+  </data>
+  <data name="Smart.Attribute.LoadedHours" xml:space="preserve">
+    <value>Loaded Hours</value>
+  </data>
+  <data name="Smart.Attribute.MAMRHealthMonitor" xml:space="preserve">
+    <value>MAMR Health Monitor</value>
+  </data>
+  <data name="Smart.Attribute.MaxEraseCountOfSpec" xml:space="preserve">
+    <value>Max Erase Count of Spec</value>
+  </data>
+  <data name="Smart.Attribute.MaxRatedPECounts" xml:space="preserve">
+    <value>Max Rated PE Counts</value>
+  </data>
+  <data name="Smart.Attribute.MaximumBadBlocksPerDie" xml:space="preserve">
+    <value>Maximum Bad Blocks per die</value>
+  </data>
+  <data name="Smart.Attribute.MaximumEraseCount" xml:space="preserve">
+    <value>Maximum Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.MaximumNANDEraseCount" xml:space="preserve">
+    <value>Maximum NAND Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.MaximumPECountSpecification" xml:space="preserve">
+    <value>Maximum PE Count Specification</value>
+  </data>
+  <data name="Smart.Attribute.MaximumPECycles" xml:space="preserve">
+    <value>Maximum P/E Cycles</value>
+  </data>
+  <data name="Smart.Attribute.MediaAndDataIntegrityErrors" xml:space="preserve">
+    <value>Media and Data Integrity Errors</value>
+  </data>
+  <data name="Smart.Attribute.MediaWearoutIndicator" xml:space="preserve">
+    <value>Media Wearout Indicator</value>
+  </data>
+  <data name="Smart.Attribute.MinimumEraseCount" xml:space="preserve">
+    <value>Minimum Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.MinimumNANDEraseCount" xml:space="preserve">
+    <value>Minimum NAND Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.MinimumPECycles" xml:space="preserve">
+    <value>Minimum P/E Cycles</value>
+  </data>
+  <data name="Smart.Attribute.NANDTemperature" xml:space="preserve">
+    <value>NAND Temperature</value>
+  </data>
+  <data name="Smart.Attribute.NandDataRead" xml:space="preserve">
+    <value>NAND Read Count</value>
+  </data>
+  <data name="Smart.Attribute.NandDataWritten" xml:space="preserve">
+    <value>Total NAND Writes</value>
+  </data>
+  <data name="Smart.Attribute.NandReadRetryCount" xml:space="preserve">
+    <value>NAND Page Reads During Retry</value>
+  </data>
+  <data name="Smart.Attribute.Non4KAlignedAccess" xml:space="preserve">
+    <value>Non-4K Aligned Access</value>
+  </data>
+  <data name="Smart.Attribute.NumberOfCacheDataBlock" xml:space="preserve">
+    <value>Number of Cache Data Block</value>
+  </data>
+  <data name="Smart.Attribute.NumberOfErrorInformationLogEntries" xml:space="preserve">
+    <value>Number of Error Information Log Entries</value>
+  </data>
+  <data name="Smart.Attribute.NumberOfInvalidBlocks" xml:space="preserve">
+    <value>Initial Invalid Blocks</value>
+  </data>
+  <data name="Smart.Attribute.OfflineSeekPerformance" xml:space="preserve">
+    <value>Offline Seek Performance</value>
+  </data>
+  <data name="Smart.Attribute.OfflineUncorrectableErrors" xml:space="preserve">
+    <value>Off-Line Uncorrectable Error Count</value>
+  </data>
+  <data name="Smart.Attribute.PECycles" xml:space="preserve">
+    <value>Average P/E Cycles</value>
+  </data>
+  <data name="Smart.Attribute.PORRecoveryCount" xml:space="preserve">
+    <value>POR Recovery Count</value>
+  </data>
+  <data name="Smart.Attribute.PartialPfail" xml:space="preserve">
+    <value>Partial Pfail</value>
+  </data>
+  <data name="Smart.Attribute.PendingSectorCount" xml:space="preserve">
+    <value>Current Pending Sector Count</value>
+  </data>
+  <data name="Smart.Attribute.PercentOfTotalEraseCount" xml:space="preserve">
+    <value>Percent of Total Write/Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.PercentOfTotalEraseCountBCBlocks" xml:space="preserve">
+    <value>Percent of Total Write/Erase Count (BC blocks)</value>
+  </data>
+  <data name="Smart.Attribute.PercentageUsed" xml:space="preserve">
+    <value>Percentage Used</value>
+  </data>
+  <data name="Smart.Attribute.PowerCycleCount" xml:space="preserve">
+    <value>Power Cycle Count</value>
+  </data>
+  <data name="Smart.Attribute.PowerFailBackupHealth" xml:space="preserve">
+    <value>Power Fail Backup Health</value>
+  </data>
+  <data name="Smart.Attribute.PowerLossProtectionFailure" xml:space="preserve">
+    <value>Power Loss Protection Failure</value>
+  </data>
+  <data name="Smart.Attribute.PowerOffRetractCount" xml:space="preserve">
+    <value>Power-off Retract Count</value>
+  </data>
+  <data name="Smart.Attribute.PowerOnHours" xml:space="preserve">
+    <value>Power-On Hours</value>
+  </data>
+  <data name="Smart.Attribute.ProgramFailCount" xml:space="preserve">
+    <value>Program Fail Count</value>
+  </data>
+  <data name="Smart.Attribute.ProgramFailCountInWorstDie" xml:space="preserve">
+    <value>Program Fail Count Worst Die</value>
+  </data>
+  <data name="Smart.Attribute.ProgramFailCountWorstCase" xml:space="preserve">
+    <value>Program Fail Count (Worst Case)</value>
+  </data>
+  <data name="Smart.Attribute.ProgramFailureBlockCount" xml:space="preserve">
+    <value>Program Failure Block Count</value>
+  </data>
+  <data name="Smart.Attribute.RAIDEventCount" xml:space="preserve">
+    <value>RAID Event Count</value>
+  </data>
+  <data name="Smart.Attribute.RAIDRecoveryCount" xml:space="preserve">
+    <value>RAID Recovery Count</value>
+  </data>
+  <data name="Smart.Attribute.RAIDUncorrectableCount" xml:space="preserve">
+    <value>RAID Uncorrectable Count</value>
+  </data>
+  <data name="Smart.Attribute.RAISEECCCorrectableCount" xml:space="preserve">
+    <value>RAISE ECC Correctable Count</value>
+  </data>
+  <data name="Smart.Attribute.RawDataErrorRate" xml:space="preserve">
+    <value>Raw data error rate</value>
+  </data>
+  <data name="Smart.Attribute.ReadChannelMargin" xml:space="preserve">
+    <value>Read Channel Margin</value>
+  </data>
+  <data name="Smart.Attribute.ReadErrorRate" xml:space="preserve">
+    <value>Read Error Rate</value>
+  </data>
+  <data name="Smart.Attribute.ReadErrorRetryRate" xml:space="preserve">
+    <value>Read Error Retry Rate</value>
+  </data>
+  <data name="Smart.Attribute.ReadFailureBlockCount" xml:space="preserve">
+    <value>Read Failure Block Count</value>
+  </data>
+  <data name="Smart.Attribute.ReallocatedNANDBlocks" xml:space="preserve">
+    <value>Reallocated NAND Blocks</value>
+  </data>
+  <data name="Smart.Attribute.ReallocatedSectorsCount" xml:space="preserve">
+    <value>Reallocated Sectors Count</value>
+  </data>
+  <data name="Smart.Attribute.ReallocationEventCount" xml:space="preserve">
+    <value>Reallocation Event Count</value>
+  </data>
+  <data name="Smart.Attribute.RecalibrationRetries" xml:space="preserve">
+    <value>Recalibration Retries</value>
+  </data>
+  <data name="Smart.Attribute.RemainingLife" xml:space="preserve">
+    <value>Remaining Life</value>
+  </data>
+  <data name="Smart.Attribute.RemainingSpareBlocks" xml:space="preserve">
+    <value>Remaining Spare Blocks</value>
+  </data>
+  <data name="Smart.Attribute.ReserveBlockCount" xml:space="preserve">
+    <value>Reserve Block Count</value>
+  </data>
+  <data name="Smart.Attribute.Reserved" xml:space="preserve">
+    <value>Reserved</value>
+  </data>
+  <data name="Smart.Attribute.RetiredBlockCount" xml:space="preserve">
+    <value>Retired Block Count</value>
+  </data>
+  <data name="Smart.Attribute.RunOutCancel" xml:space="preserve">
+    <value>Run Out Cancel</value>
+  </data>
+  <data name="Smart.Attribute.RuntimeBadBlock" xml:space="preserve">
+    <value>Runtime Bad Block (Total)</value>
+  </data>
+  <data name="Smart.Attribute.SATADownshiftCount" xml:space="preserve">
+    <value>SATA Downshift Count</value>
+  </data>
+  <data name="Smart.Attribute.SATAPhysicalErrorCount" xml:space="preserve">
+    <value>SATA PHY Error Count</value>
+  </data>
+  <data name="Smart.Attribute.SATARErrors" xml:space="preserve">
+    <value>SATA R-Errors Error Count</value>
+  </data>
+  <data name="Smart.Attribute.SLCAverageEraseCount" xml:space="preserve">
+    <value>Average SLC Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.SLCCache" xml:space="preserve">
+    <value>SLC Cache</value>
+  </data>
+  <data name="Smart.Attribute.SLCMaximumEraseCount" xml:space="preserve">
+    <value>Maximum SLC Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.SLCMinimumEraseCount" xml:space="preserve">
+    <value>Minimum SLC Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.SLCTotalEraseCount" xml:space="preserve">
+    <value>Total SLC Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.SPITestsRemaining" xml:space="preserve">
+    <value>SPI Tests Remaining</value>
+  </data>
+  <data name="Smart.Attribute.SSDModeStatus" xml:space="preserve">
+    <value>SSD Mode Status</value>
+  </data>
+  <data name="Smart.Attribute.SSDProtectMode" xml:space="preserve">
+    <value>SSD Protect Mode</value>
+  </data>
+  <data name="Smart.Attribute.SeekErrorRate" xml:space="preserve">
+    <value>Seek Error Rate</value>
+  </data>
+  <data name="Smart.Attribute.SeekTimePerformance" xml:space="preserve">
+    <value>Seek Time Performance</value>
+  </data>
+  <data name="Smart.Attribute.ShockDuringWrite" xml:space="preserve">
+    <value>Shock During Write</value>
+  </data>
+  <data name="Smart.Attribute.ShockEventCount" xml:space="preserve">
+    <value>Op Shock Event Count</value>
+  </data>
+  <data name="Smart.Attribute.SimpleReadRetryAttempts" xml:space="preserve">
+    <value>Simple Read Retry Attempts</value>
+  </data>
+  <data name="Smart.Attribute.SoftECCCorrection" xml:space="preserve">
+    <value>Soft ECC Correction</value>
+  </data>
+  <data name="Smart.Attribute.SoftReadErrorRate" xml:space="preserve">
+    <value>Soft Read Error Rate</value>
+  </data>
+  <data name="Smart.Attribute.SoftReadErrorRateStab" xml:space="preserve">
+    <value>Soft Read Error Rate stab</value>
+  </data>
+  <data name="Smart.Attribute.SpareBlocksAvailable" xml:space="preserve">
+    <value>Spare Blocks Available</value>
+  </data>
+  <data name="Smart.Attribute.SpinBuzz" xml:space="preserve">
+    <value>Spin Buzz</value>
+  </data>
+  <data name="Smart.Attribute.SpinHighCurrent" xml:space="preserve">
+    <value>Spin High Current</value>
+  </data>
+  <data name="Smart.Attribute.SpinRetryCount" xml:space="preserve">
+    <value>Spin Retry Count</value>
+  </data>
+  <data name="Smart.Attribute.SpinUpTime" xml:space="preserve">
+    <value>Spin-Up Time</value>
+  </data>
+  <data name="Smart.Attribute.StartStopCount" xml:space="preserve">
+    <value>Start/Stop Count</value>
+  </data>
+  <data name="Smart.Attribute.SuccessfulRAINRecoveryCount" xml:space="preserve">
+    <value>Successful RAIN Recovery Count</value>
+  </data>
+  <data name="Smart.Attribute.SuperCapStatus" xml:space="preserve">
+    <value>Super cap Status</value>
+  </data>
+  <data name="Smart.Attribute.Temperature" xml:space="preserve">
+    <value>Temperature</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor1" xml:space="preserve">
+    <value>Temperature Sensor 1</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor2" xml:space="preserve">
+    <value>Temperature Sensor 2</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor3" xml:space="preserve">
+    <value>Temperature Sensor 3</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor4" xml:space="preserve">
+    <value>Temperature Sensor 4</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor5" xml:space="preserve">
+    <value>Temperature Sensor 5</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor6" xml:space="preserve">
+    <value>Temperature Sensor 6</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor7" xml:space="preserve">
+    <value>Temperature Sensor 7</value>
+  </data>
+  <data name="Smart.Attribute.TemperatureSensor8" xml:space="preserve">
+    <value>Temperature Sensor 8</value>
+  </data>
+  <data name="Smart.Attribute.ThermalAsperityRate" xml:space="preserve">
+    <value>Thermal Asperity Rate</value>
+  </data>
+  <data name="Smart.Attribute.ThermalManagementTemperature1TransitionCount" xml:space="preserve">
+    <value>Thermal Management Temperature 1 Transition Count</value>
+  </data>
+  <data name="Smart.Attribute.ThermalManagementTemperature2TransitionCount" xml:space="preserve">
+    <value>Thermal Management Temperature 2 Transition Count</value>
+  </data>
+  <data name="Smart.Attribute.ThermalThrottleStatus" xml:space="preserve">
+    <value>Thermal Throttle Status</value>
+  </data>
+  <data name="Smart.Attribute.ThrottleStatistics" xml:space="preserve">
+    <value>Throttle Statistics</value>
+  </data>
+  <data name="Smart.Attribute.ThroughputPerformance" xml:space="preserve">
+    <value>Throughput Performance</value>
+  </data>
+  <data name="Smart.Attribute.TimedWorkloadHostReadWriteRatio" xml:space="preserve">
+    <value>Timed Workload Host Read/Write Ratio</value>
+  </data>
+  <data name="Smart.Attribute.TimedWorkloadMediaWear" xml:space="preserve">
+    <value>Timed Workload Media Wear</value>
+  </data>
+  <data name="Smart.Attribute.TimedWorkloadTimer" xml:space="preserve">
+    <value>Timed Workload Timer</value>
+  </data>
+  <data name="Smart.Attribute.TorqueAmplificationCount" xml:space="preserve">
+    <value>Torque Amplification Count</value>
+  </data>
+  <data name="Smart.Attribute.TotalBackgroundScan" xml:space="preserve">
+    <value>Total Background Scan</value>
+  </data>
+  <data name="Smart.Attribute.TotalBackgroundScanOverLimitCount" xml:space="preserve">
+    <value>Total Background Scan Over Limit Count</value>
+  </data>
+  <data name="Smart.Attribute.TotalBlockEraseFailure" xml:space="preserve">
+    <value>Total Block Erase Failure</value>
+  </data>
+  <data name="Smart.Attribute.TotalBlockReMapPassCount" xml:space="preserve">
+    <value>Total Block ReMap Pass Count</value>
+  </data>
+  <data name="Smart.Attribute.TotalBlocksErased" xml:space="preserve">
+    <value>Total Blocks Erased</value>
+  </data>
+  <data name="Smart.Attribute.TotalBytesRead" xml:space="preserve">
+    <value>Total Bytes Read</value>
+  </data>
+  <data name="Smart.Attribute.TotalCountErrorBitsFromFlash" xml:space="preserve">
+    <value>Total Count of Error bits from flash</value>
+  </data>
+  <data name="Smart.Attribute.TotalCountReadCommands" xml:space="preserve">
+    <value>Total Count of Read Commands</value>
+  </data>
+  <data name="Smart.Attribute.TotalCountReadSectors" xml:space="preserve">
+    <value>Total Count of Read Sectors</value>
+  </data>
+  <data name="Smart.Attribute.TotalCountReadSectorsWithCorrectableBitErrors" xml:space="preserve">
+    <value>Total Count of Read Sectors with Correctable Bit Errors</value>
+  </data>
+  <data name="Smart.Attribute.TotalCountWriteCommands" xml:space="preserve">
+    <value>Total Count of Write Commands</value>
+  </data>
+  <data name="Smart.Attribute.TotalCountWriteSectors" xml:space="preserve">
+    <value>Total Count of Write Sectors</value>
+  </data>
+  <data name="Smart.Attribute.TotalDoRefCalCount" xml:space="preserve">
+    <value>Total Do RefCal Count</value>
+  </data>
+  <data name="Smart.Attribute.TotalEraseCount" xml:space="preserve">
+    <value>Total Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.TotalNANDEraseCount" xml:space="preserve">
+    <value>Total NAND Erase Count</value>
+  </data>
+  <data name="Smart.Attribute.TotalNANDReadPlaneCountHigh" xml:space="preserve">
+    <value>Total NAND Read Plane Count (High 4Bytes)</value>
+  </data>
+  <data name="Smart.Attribute.TotalNANDReadPlaneCountLow" xml:space="preserve">
+    <value>Total NAND Read Plane Count (Low 4Bytes)</value>
+  </data>
+  <data name="Smart.Attribute.TotalNumberCorrectedBits" xml:space="preserve">
+    <value>Total Number of Corrected Bits</value>
+  </data>
+  <data name="Smart.Attribute.TotalReadFailures" xml:space="preserve">
+    <value>Total Read Failures (Uncorrectable)</value>
+  </data>
+  <data name="Smart.Attribute.TotalRefreshISPCount" xml:space="preserve">
+    <value>Total Refresh ISP Count</value>
+  </data>
+  <data name="Smart.Attribute.TotalTimeThermalManagementTemperature1" xml:space="preserve">
+    <value>Total Time For Thermal Management Temperature 1</value>
+  </data>
+  <data name="Smart.Attribute.TotalTimeThermalManagementTemperature2" xml:space="preserve">
+    <value>Total Time For Thermal Management Temperature 2</value>
+  </data>
+  <data name="Smart.Attribute.TotalUncorrectableNANDReads" xml:space="preserve">
+    <value>Total Uncorrectable NAND Reads</value>
+  </data>
+  <data name="Smart.Attribute.UnalignedAccessCount" xml:space="preserve">
+    <value>Unaligned Access Count</value>
+  </data>
+  <data name="Smart.Attribute.UncorrectableErrors" xml:space="preserve">
+    <value>Reported Uncorrectable Errors</value>
+  </data>
+  <data name="Smart.Attribute.UncorrectableSectorCount" xml:space="preserve">
+    <value>Uncorrectable Sector Count</value>
+  </data>
+  <data name="Smart.Attribute.UncorrectableSoftReadErrorRate" xml:space="preserve">
+    <value>Uncorrectable Soft Read Error Rate</value>
+  </data>
+  <data name="Smart.Attribute.UnexpectedPowerLoss" xml:space="preserve">
+    <value>Unexpected Power Loss</value>
+  </data>
+  <data name="Smart.Attribute.UnsafeShutdownCount" xml:space="preserve">
+    <value>Unsafe Shutdowns</value>
+  </data>
+  <data name="Smart.Attribute.UnusedReservedBlockCount" xml:space="preserve">
+    <value>Unused Reserved Block Count (Total)</value>
+  </data>
+  <data name="Smart.Attribute.UnusedSpareNANDBlocks" xml:space="preserve">
+    <value>Unused Spare NAND Blocks</value>
+  </data>
+  <data name="Smart.Attribute.UsedReservedBlockCount" xml:space="preserve">
+    <value>Used Reserved Block Count (Chip)</value>
+  </data>
+  <data name="Smart.Attribute.UsedReservedBlockCountWorstCase" xml:space="preserve">
+    <value>Used Reserved Block Count (Worst Case)</value>
+  </data>
+  <data name="Smart.Attribute.UsedReservedBlockCountWorstDie" xml:space="preserve">
+    <value>Used Reserved Block Count worst Die</value>
+  </data>
+  <data name="Smart.Attribute.UserCapacity" xml:space="preserve">
+    <value>User Capacity</value>
+  </data>
+  <data name="Smart.Attribute.VendorUnique" xml:space="preserve">
+    <value>Vendor Unique</value>
+  </data>
+  <data name="Smart.Attribute.VibrationDuringWrite" xml:space="preserve">
+    <value>Vibration During Write</value>
+  </data>
+  <data name="Smart.Attribute.WarningCompositeTemperatureTime" xml:space="preserve">
+    <value>Warning Composite Temperature Time</value>
+  </data>
+  <data name="Smart.Attribute.WearLevelingCount" xml:space="preserve">
+    <value>Wear Leveling Count</value>
+  </data>
+  <data name="Smart.Attribute.WearRangeDelta" xml:space="preserve">
+    <value>Wear Range Delta</value>
+  </data>
+  <data name="Smart.Attribute.WriteAmplificationFactor" xml:space="preserve">
+    <value>Write Amplification Factor</value>
+  </data>
+  <data name="Smart.Attribute.WriteAmplificationMultipliedBy100" xml:space="preserve">
+    <value>Write Amplification multiplied by 100</value>
+  </data>
+  <data name="Smart.Attribute.WriteErrorRate" xml:space="preserve">
+    <value>Write Error Rate</value>
+  </data>
+  <data name="Smart.Attribute.WriteHead" xml:space="preserve">
+    <value>Write Head</value>
+  </data>
+  <data name="Smart.Attribute.WriteProtectProgress" xml:space="preserve">
+    <value>Write Protect Progress</value>
+  </data>
+  <data name="Smart.Attribute.WriteThrottlingActivationFlag" xml:space="preserve">
+    <value>Write Throttling Activation Flag</value>
+  </data>
+  <data name="HealthStatus.Reason.NvmeAvailableSpareBelowThreshold" xml:space="preserve">
+    <value>Available spare has fallen below the threshold ({0}% &lt; {1}%).</value>
+  </data>
+  <data name="HealthStatus.Reason.NvmeTemperatureError" xml:space="preserve">
+    <value>Temperature error was reported (overheat or undercool).</value>
+  </data>
+  <data name="HealthStatus.Reason.NvmeSubsystemReliabilityDegraded" xml:space="preserve">
+    <value>NVM subsystem reliability has been degraded.</value>
+  </data>
+  <data name="HealthStatus.Reason.NvmeReadOnlyMode" xml:space="preserve">
+    <value>The media has been placed in read-only mode.</value>
+  </data>
+  <data name="HealthStatus.Reason.NvmeVolatileMemoryBackupFailed" xml:space="preserve">
+    <value>The volatile memory backup device has failed.</value>
+  </data>
+  <data name="HealthStatus.Reason.NvmePersistentMemoryReadOnly" xml:space="preserve">
+    <value>The persistent memory region has become read-only.</value>
+  </data>
+  <data name="HealthStatus.Reason.NvmeAvailableSpareAtThreshold" xml:space="preserve">
+    <value>Available spare has reached the threshold ({0}% = {1}%).</value>
+  </data>
+  <data name="HealthStatus.Reason.AttributeBelowThreshold" xml:space="preserve">
+    <value>Attribute {0} ({1}) is below its threshold ({2} &lt; {3}).</value>
+  </data>
+  <data name="HealthStatus.Reason.AttributeRawValueNonZero" xml:space="preserve">
+    <value>Attribute {0} ({1}) reports a non-zero raw value: {2}.</value>
+  </data>
+  <data name="HealthStatus.Reason.RemainingLifeLow" xml:space="preserve">
+    <value>Remaining life is low: {0}%.</value>
+  </data>
+  <data name="HealthStatus.Reason.RemainingLifeVeryLow" xml:space="preserve">
+    <value>Remaining life is very low: {0}%.</value>
+  </data>
+  <data name="HealthStatus.Reason.RemainingLifeCritical" xml:space="preserve">
+    <value>Remaining life is critically low: {0}%.</value>
+  </data>
+</root>

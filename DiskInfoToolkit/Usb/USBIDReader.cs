@@ -3,10 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
 using DiskInfoToolkit.Utilities;
@@ -30,14 +27,47 @@ namespace DiskInfoToolkit.Usb
 
         const string USBIDFileName = "usb.ids.gz";
 
-        static Regex _Regex = new Regex(@"^([0-9A-Fa-f]+|\d+)\s\s(.+)$");
+        static Regex _regex = new Regex(@"^([0-9A-Fa-f]+|\d+)\s\s(.+)$");
+        static List<UsbVendor> _vendors = new List<UsbVendor>();
 
         #endregion
 
         #region Properties
 
-        static List<UsbVendor> _Vendors = new();
-        public static IReadOnlyList<UsbVendor> Vendors => _Vendors;
+        public static IReadOnlyList<UsbVendor> Vendors => _vendors;
+
+        #endregion
+
+        #region Public
+
+        public static bool TryGetVendorAndDeviceName(ushort vendorId, ushort productId, out string vendorName, out string deviceName)
+        {
+            vendorName = string.Empty;
+            deviceName = string.Empty;
+
+            foreach (var vendor in _vendors)
+            {
+                if (vendor.ID != vendorId)
+                {
+                    continue;
+                }
+
+                vendorName = vendor.Name ?? string.Empty;
+
+                foreach (var device in vendor.Devices)
+                {
+                    if (device.ID == productId)
+                    {
+                        deviceName = device.Name ?? string.Empty;
+                        break;
+                    }
+                }
+
+                return !string.IsNullOrWhiteSpace(vendorName) || !string.IsNullOrWhiteSpace(deviceName);
+            }
+
+            return false;
+        }
 
         #endregion
 
@@ -47,77 +77,64 @@ namespace DiskInfoToolkit.Usb
         {
             string resourceName = $"{nameof(DiskInfoToolkit)}.Resources.{USBIDFileName}";
 
-            try
+            using (var stream = ResourceExtractor.GetResourceFileGZipStream(resourceName))
             {
-                using (var stream = ResourceExtractor.GetResourceFileGZipStream(resourceName))
+                if (stream == null)
                 {
-                    //Resource is good
-                    if (stream != null)
+                    return;
+                }
+
+                using (var reader = new StreamReader(stream))
+                {
+                    string rawLine;
+                    UsbVendor vendor = null;
+                    UsbDevice device = null;
+
+                    while ((rawLine = reader.ReadLine()) != null)
                     {
-                        using (var reader = new StreamReader(stream))
+                        if (rawLine.StartsWith("#", StringComparison.Ordinal) || rawLine.Length == 0)
                         {
-                            string rawLine = null;
+                            continue;
+                        }
 
-                            UsbVendor vendor = null;
-                            UsbDevice device = null;
+                        var lineValues = GetLineValues(rawLine.Trim());
+                        if (lineValues == null)
+                        {
+                            continue;
+                        }
 
-                            while ((rawLine = reader.ReadLine()) != null)
+                        if (rawLine.StartsWith("\t\t", StringComparison.Ordinal))
+                        {
+                            if (device != null)
                             {
-                                //Skip comments and empty lines
-                                if (rawLine.StartsWith("#") || rawLine.Length == 0)
-                                {
-                                    continue;
-                                }
-
-                                var lineValues = GetLineValues(rawLine.Trim());
-
-                                if (lineValues == null)
-                                {
-                                    continue;
-                                }
-
-                                if (rawLine.StartsWith("\t\t")) //Interface
-                                {
-                                    if (device != null)
-                                    {
-                                        device.Interfaces.Add(new(lineValues.Item1, lineValues.Item2));
-                                    }
-                                }
-                                else if (rawLine.StartsWith("\t")) //Device
-                                {
-                                    if (vendor != null)
-                                    {
-                                        device = new(lineValues.Item1, lineValues.Item2);
-
-                                        vendor.Devices.Add(device);
-                                    }
-                                }
-                                else //Vendor
-                                {
-                                    vendor = new(lineValues.Item1, lineValues.Item2);
-
-                                    _Vendors.Add(vendor);
-                                }
+                                device.Interfaces.Add(new UsbInterface(lineValues.Item1, lineValues.Item2));
                             }
+                        }
+                        else if (rawLine.StartsWith("\t", StringComparison.Ordinal))
+                        {
+                            if (vendor != null)
+                            {
+                                device = new UsbDevice(lineValues.Item1, lineValues.Item2);
+                                vendor.Devices.Add(device);
+                            }
+                        }
+                        else
+                        {
+                            vendor = new UsbVendor(lineValues.Item1, lineValues.Item2);
+                            _vendors.Add(vendor);
                         }
                     }
                 }
-            }
-            catch (Exception)
-            {
-                throw;
             }
         }
 
         static Tuple<int, string> GetLineValues(string line)
         {
-            var match = _Regex.Match(line);
-
+            var match = _regex.Match(line);
             if (match.Success)
             {
-                int.TryParse(match.Groups[1].Value, NumberStyles.HexNumber, null, out var value);
-
-                return new(value, match.Groups[2].Value);
+                int.TryParse(match.Groups[1].Value, NumberStyles.HexNumber, null, out int value);
+                return Tuple.Create(value, match.Groups[2].Value);
             }
 
             return null;

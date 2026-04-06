@@ -3,25 +3,30 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using DiskInfoToolkit;
-using DiskInfoToolkit.Enums.Interop;
 using DiskInfoViewer.ViewModels;
 
 namespace DiskInfoViewer.ModelAbstraction
 {
     public partial class PartitionVM : ViewModelBase
     {
+        #region Constructor
+
+        public PartitionVM(StoragePartitionInfo storagePartitionInfo)
+        {
+            Update(storagePartitionInfo);
+        }
+
+        #endregion
+
         #region Properties
 
         [ObservableProperty]
-        PartitionStyle _partitionStyle;
+        DiskPartitionStyle _partitionStyle;
 
         [ObservableProperty]
         long _startingOffset;
@@ -42,14 +47,22 @@ namespace DiskInfoViewer.ModelAbstraction
 
         #region Public
 
-        public void Update(Partition partition)
+        public bool EqualsPartition(StoragePartitionInfo other)
         {
-            PartitionStyle     = partition.PartitionStyle    ;
-            StartingOffset     = partition.StartingOffset    ;
-            PartitionLength    = partition.PartitionLength   ;
-            PartitionNumber    = partition.PartitionNumber   ;
-            DriveLetter        = partition.DriveLetter       ;
-            AvailableFreeSpace = partition.AvailableFreeSpace;
+            return PartitionStyle  == other.PartitionStyle
+                && StartingOffset  == other.StartingOffset
+                && PartitionLength == other.PartitionLength
+                && PartitionNumber == other.PartitionNumber;
+        }
+
+        public void Update(StoragePartitionInfo partition)
+        {
+            PartitionStyle     = partition.PartitionStyle         ;
+            StartingOffset     = partition.StartingOffset         ;
+            PartitionLength    = partition.PartitionLength        ;
+            PartitionNumber    = partition.PartitionNumber        ;
+            DriveLetter        = partition.DriveLetter            ;
+            AvailableFreeSpace = partition.AvailableFreeSpaceBytes;
         }
 
         #endregion

@@ -25,36 +25,44 @@
 			<ColumnDefinition/>
 		</Grid.ColumnDefinitions>
 
+		<!-- Model name -->
 		<StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">
 			<TextBlock Text="{Binding Storage.Model}"/>
 		</StackPanel>
 
-		<StackPanel Grid.Row="1" Grid.Column="0">
-			<TextBlock Text="Health"
-					   IsVisible="{Binding Storage.Smart.Life, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-			<TextBlock Text="{Binding Storage.Smart.Life, StringFormat='{}{0}%'}"
-					   IsVisible="{Binding Storage.Smart.Life, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-			<TextBlock Text="Temperature"/>
-			<TextBlock Text="{Binding Storage.Smart.Temperature, StringFormat='{}{0}°C'}"/>
-			<TextBlock Text="Disk Status"/>
-			<TextBlock Text="{Binding Storage.Smart.DiskStatus}"/>
-		</StackPanel>
+		<!-- Status report (left side) -->
+		<ctrl:GridEx Grid.Row="1" Grid.Column="0"
+					 Grid.RowDefinitions="Auto,Auto,Auto,Auto"
+					 Grid.ColumnDefinitions="Auto, Auto">
+			<TextBlock Grid.Row="0" Grid.Column="0" Text="Health"
+					   IsVisible="{Binding Storage.Life, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+			<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Storage.Life, StringFormat='{}{0}%'}"
+					   IsVisible="{Binding Storage.Life, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 
+			<TextBlock Grid.Row="1" Grid.Column="0" Text="Temperature"
+					   IsVisible="{Binding Storage.Temperature, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+			<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Storage.Temperature, StringFormat='{}{0}°C'}"
+					   IsVisible="{Binding Storage.Temperature, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+
+			<TextBlock Grid.Row="2" Grid.Column="0" Text="Health status"
+					   IsVisible="{Binding Storage.HealthStatus, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+			<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Storage.HealthStatus}"
+					   IsVisible="{Binding Storage.HealthStatus, Converter={x:Static ObjectConverters.IsNotNull}}"
+					   Foreground="{Binding Storage.HealthStatus, Converter={StaticResource StorageHealthStatusToColorConverter}}"/>
+
+			<TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Storage.HealthStatusReason}"
+					   IsVisible="{Binding Storage.HealthStatusReason, Converter={x:Static ObjectConverters.IsNotNull}}"
+					   Foreground="{Binding Storage.HealthStatus, Converter={StaticResource StorageHealthStatusToColorConverter}}"/>
+		</ctrl:GridEx>
+
+		<!-- Properties (right side) -->
 		<StackPanel Grid.Row="1" Grid.Column="1">
-			<ctrl:GridEx>
+			<ctrl:GridEx Grid.RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
 				<Grid.Styles>
 					<Style Selector="TextBlock">
 						<Setter Property="HorizontalAlignment" Value="Right"/>
 					</Style>
 				</Grid.Styles>
-				<Grid.RowDefinitions>
-					<RowDefinition/>
-					<RowDefinition/>
-					<RowDefinition/>
-					<RowDefinition/>
-					<RowDefinition/>
-					<RowDefinition/>
-				</Grid.RowDefinitions>
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition/>
 					<ColumnDefinition/>
@@ -63,10 +71,11 @@
 					<ColumnDefinition/>
 				</Grid.ColumnDefinitions>
 
-				<TextBlock Grid.Row="0" Grid.Column="0" Text="Vendor"
-						   IsVisible="{Binding Storage.Vendor, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-				<TextBox Grid.Row="0" Grid.Column="1" IsReadOnly="True" Text="{Binding Storage.Vendor}"
-						 IsVisible="{Binding Storage.Vendor, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+				<!-- Column 0-1 -->
+				<TextBlock Grid.Row="0" Grid.Column="0" Text="Controller Vendor"
+						   IsVisible="{Binding Storage.ControllerVendorName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+				<TextBox Grid.Row="0" Grid.Column="1" IsReadOnly="True" Text="{Binding Storage.ControllerVendorName}"
+						 IsVisible="{Binding Storage.ControllerVendorName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
 				<TextBlock Grid.Row="1" Grid.Column="0" Text="Firmware"/>
 				<TextBox Grid.Row="1" Grid.Column="1" IsReadOnly="True" Text="{Binding Storage.Firmware}"/>
@@ -89,29 +98,35 @@
 				<TextBlock Grid.Row="5" Grid.Column="0" Text="Total size in bytes"/>
 				<TextBox Grid.Row="5" Grid.Column="1" IsReadOnly="True" Text="{Binding Storage.TotalSize, Mode=OneWay, StringFormat='{}{0:N0}'}"/>
 
-				<TextBlock Grid.Row="0" Grid.Column="3" Text="VendorID"
-						   IsVisible="{Binding Storage.VendorID, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-				<TextBox Grid.Row="0" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.VendorID}"
-						 IsVisible="{Binding Storage.VendorID, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+				<!-- Column 3-4 -->
+				<TextBlock Grid.Row="0" Grid.Column="3" Text="Controller Device"
+						   IsVisible="{Binding Storage.ControllerDeviceName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+				<TextBox Grid.Row="0" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.ControllerDeviceName}"
+						 IsVisible="{Binding Storage.ControllerDeviceName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
 				<TextBlock Grid.Row="1" Grid.Column="3" Text="Total reads"
-						   IsVisible="{Binding Storage.Smart.HostReads, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-				<TextBox Grid.Row="1" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.Smart.HostReads}"
-						 IsVisible="{Binding Storage.Smart.HostReads, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+						   IsVisible="{Binding Storage.HostReads, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+				<TextBox Grid.Row="1" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.HostReads}"
+						 IsVisible="{Binding Storage.HostReads, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 
 				<TextBlock Grid.Row="2" Grid.Column="3" Text="Total writes"
-						   IsVisible="{Binding Storage.Smart.HostWrites, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-				<TextBox Grid.Row="2" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.Smart.HostWrites}"
-						 IsVisible="{Binding Storage.Smart.HostWrites, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+						   IsVisible="{Binding Storage.HostWrites, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+				<TextBox Grid.Row="2" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.HostWrites}"
+						 IsVisible="{Binding Storage.HostWrites, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 
-				<TextBlock Grid.Row="3" Grid.Column="3" Text="Power on count"/>
-				<TextBox Grid.Row="3" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.Smart.PowerOnCount}"/>
+				<TextBlock Grid.Row="3" Grid.Column="3" Text="Power on count"
+						 IsVisible="{Binding Storage.PowerOnCount, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+				<TextBox Grid.Row="3" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.PowerOnCount}"
+						 IsVisible="{Binding Storage.PowerOnCount, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 
-				<TextBlock Grid.Row="4" Grid.Column="3" Text="Power on hours"/>
-				<TextBox Grid.Row="4" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.Smart.MeasuredPowerOnHours}"/>
+				<TextBlock Grid.Row="4" Grid.Column="3" Text="Power on hours"
+						 IsVisible="{Binding Storage.PowerOnHours, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+				<TextBox Grid.Row="4" Grid.Column="4" IsReadOnly="True" Text="{Binding Storage.PowerOnHours}"
+						 IsVisible="{Binding Storage.PowerOnHours, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 			</ctrl:GridEx>
 		</StackPanel>
 
+		<!-- Partitions -->
 		<ctrl:GridEx Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
 					 IsVisible="{Binding !Storage.IsDynamicDisk}">
 			<Grid.RowDefinitions>
@@ -133,7 +148,9 @@
 			</DataGrid>
 		</ctrl:GridEx>
 
-		<ctrl:GridEx Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
+		<!-- Attributes -->
+		<ctrl:GridEx Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+					 IsVisible="{Binding Storage.IsSmartSupported}">
 			<Grid.RowDefinitions>
 				<RowDefinition Height="Auto"/>
 				<RowDefinition/>
@@ -142,7 +159,7 @@
 			<TextBlock Grid.Row="0" Text="Attributes:"/>
 			<DataGrid Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
 					  CanUserResizeColumns="True"
-					  ItemsSource="{Binding Storage.Smart.SmartAttributes}">
+					  ItemsSource="{Binding Storage.SmartAttributes}">
 				<DataGrid.Columns>
 					<DataGridTextColumn Header="ID" Binding="{Binding ID}"/>
 					<DataGridTextColumn Header="Name" Binding="{Binding Name}"/>

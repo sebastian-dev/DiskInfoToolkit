@@ -3,394 +3,310 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
-using BlackSharp.Core.Extensions;
-using BlackSharp.Core.Interop.Windows.Utilities;
-using DiskInfoToolkit.Disk;
-using DiskInfoToolkit.Enums;
-using DiskInfoToolkit.Enums.Interop;
-using DiskInfoToolkit.Globals;
-using DiskInfoToolkit.HardDrive;
-using DiskInfoToolkit.Identifiers;
-using DiskInfoToolkit.Internal;
+using DiskInfoToolkit.Constants;
+using DiskInfoToolkit.Core;
 using DiskInfoToolkit.Interop;
-using DiskInfoToolkit.Interop.Enums;
-using DiskInfoToolkit.Interop.Structures;
-using DiskInfoToolkit.Logging;
-using DiskInfoToolkit.Usb;
+using DiskInfoToolkit.Monitoring;
+using DiskInfoToolkit.Native;
+using DiskInfoToolkit.Partitions;
+using DiskInfoToolkit.Vendors;
+using Microsoft.Win32.SafeHandles;
+using System.Globalization;
+using System.Reflection;
+using System.Resources;
 using System.Runtime.InteropServices;
-using OS = BlackSharp.Core.Platform.OperatingSystem;
 
 namespace DiskInfoToolkit
 {
     /// <summary>
-    /// Represents a storage medium.
+    /// This class provides static methods for storage device enumeration, monitoring and management.
     /// </summary>
-    public sealed class Storage : IDisposable
+    public static class Storage
     {
-        #region Constructor
+        #region Events
 
-        static Storage()
+        /// <summary>
+        /// Occurs when the set of available storage devices changes.
+        /// </summary>
+        /// <remarks>Subscribe to this event to be notified when storage devices are added or removed.<br/>
+        /// The event provides information about the change through the <see cref="StorageDevicesChangedEventArgs"/> parameter.</remarks>
+        public static event EventHandler<StorageDevicesChangedEventArgs> DevicesChanged
         {
-            HasNVMeStorageQuery = OS.GetOSVersion(out var major, out _) && major >= 10;
-        }
-
-        internal Storage(string storageController, StorageDevice sdi)
-        {
-#if DEBUG
-            var sw = new System.Diagnostics.Stopwatch();
-            sw.Start();
-#endif
-
-            if (sdi == null)
+            add
             {
-                throw new ArgumentNullException(nameof(sdi));
+                EnsureMonitoringStarted();
+                _devicesChanged += value;
             }
-
-            StorageController      = storageController;
-            _StorageDeviceInternal = sdi;
-
-            var handle = SafeFileHandler.OpenHandle(_StorageDeviceInternal.PhysicalPath);
-
-            if (!SafeFileHandler.IsHandleValid(handle))
+            remove
             {
-                LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is invalid.");
-
-                IsValid = false;
-                return;
+                _devicesChanged -= value;
             }
-            else
-            {
-                LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is open.");
-                LogSimple.LogDebug($"{nameof(Storage)}: {nameof(sdi.PhysicalPath)} = '{sdi.PhysicalPath}'.");
-            }
-
-            try
-            {
-                Initialize(handle);
-                if (!IsValid)
-                {
-                    return;
-                }
-
-                IsValid = IdentifyDisk(handle);
-            }
-            finally
-            {
-                SafeFileHandler.CloseHandle(handle);
-            }
-
-#if DEBUG
-            sw.Stop();
-
-            LogSimple.LogDebug($"{nameof(Storage)}: Initialization of {nameof(Storage)} took {sw.Elapsed}.");
-#endif
-        }
-
-        internal Storage(byte csmiPort)
-        {
-#if DEBUG
-            var sw = new System.Diagnostics.Stopwatch();
-            sw.Start();
-#endif
-
-            if (csmiPort < 0 || csmiPort >= InteropConstants.MAX_SEARCH_SCSI_PORT)
-            {
-                IsValid = false;
-                return;
-            }
-
-            StorageController = string.Empty;
-
-            _StorageDeviceInternal = new()
-            {
-                DeviceID = $@"CSMI\PORT_{csmiPort}",
-                HardwareID = "CSMI",
-                PhysicalPath = $@"\\.\Scsi{csmiPort}:",
-            };
-
-            ScsiPort = csmiPort;
-
-            var ok = SharedMethods.TryGetCsmiHandle(csmiPort, out var handle);
-
-            try
-            {
-                if (!ok)
-                {
-                    LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is invalid.");
-
-                    IsValid = false;
-                    return;
-                }
-                else
-                {
-                    LogSimple.LogDebug($"{nameof(Storage)}: Handle for {nameof(Storage)} is open.");
-                    LogSimple.LogDebug($"{nameof(Storage)}: {nameof(_StorageDeviceInternal.PhysicalPath)} = '{_StorageDeviceInternal.PhysicalPath}'.");
-                }
-
-                _StorageDeviceInternal.DriveNumber = GetDriveNumber(handle);
-
-                Initialize(handle);
-                if (!IsValid)
-                {
-                    return;
-                }
-
-                IsValid = DiskHandler.AddDiskCsmi(this, csmiPort);
-            }
-            finally
-            {
-                SafeFileHandler.CloseHandle(handle);
-            }
-#if DEBUG
-            sw.Stop();
-
-            LogSimple.LogDebug($"{nameof(Storage)}: Initialization of {nameof(Storage)} took {sw.Elapsed}.");
-#endif
-        }
-
-        ~Storage()
-        {
-            Dispose();
         }
 
         #endregion
 
         #region Fields
 
-        bool _Disposed;
+        private const string MessageWindowClassName = nameof(Storage) + "TopLevelHiddenWindowClass";
 
-        StorageDevice _StorageDeviceInternal;
+        private const string MessageWindowTitle = nameof(Storage) + "MessageWindow";
+
+        private static readonly object SyncRoot = new object();
+
+        private static readonly AutoResetEvent RescanSignal = new AutoResetEvent(false);
+
+        private static IntPtr _messageWindow;
+
+        private static IntPtr _volumeNotificationHandle;
+
+        private static IntPtr _diskNotificationHandle;
+
+        private static StorageWindowProc _windowProcDelegate;
+
+        private static Thread _messageLoopThread;
+
+        private static Thread _rescanThread;
+
+        private static Thread _mediaWatchThread;
+
+        private static bool _monitoringStarted;
+
+        private static TimeSpan _mediaWatchLoopDelay = TimeSpan.FromSeconds(1);
+
+        private static CultureInfo _resourceCulture = CultureInfo.InvariantCulture;
+
+        private static ResourceManager _resourceManager;
+
+        private static string _resourceBaseName;
+
+        private static List<StorageDevice> _currentDisks = new List<StorageDevice>();
+
+        private static List<StorageDevice> _mediaWatchDevices = new List<StorageDevice>();
+
+        private static Dictionary<string, bool?> _removableMediaStates = new Dictionary<string, bool?>(StringComparer.OrdinalIgnoreCase);
+
+        private static EventHandler<StorageDevicesChangedEventArgs> _devicesChanged;
 
         #endregion
 
         #region Properties
 
-        #region Special
+        /// <summary>
+        /// Gets or sets the delay between removable-media polling cycles.<br/>
+        /// Default is 1 second.
+        /// </summary>
+        /// <remarks>Setting a very low value may increase CPU usage, while setting a very high value may cause slower reaction to media changes.</remarks>
+        public static TimeSpan MediaWatchLoopDelay
+        {
+            get
+            {
+                lock (SyncRoot)
+                {
+                    return _mediaWatchLoopDelay;
+                }
+            }
+            set
+            {
+                if (value <= TimeSpan.Zero)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(value));
+                }
+
+                lock (SyncRoot)
+                {
+                    _mediaWatchLoopDelay = value;
+                }
+            }
+        }
 
         /// <summary>
-        /// Gets the date and time when the entity was last updated, or null if the entity has not been updated yet.
+        /// Gets or sets the culture used to localize assembly resources.
         /// </summary>
-        public DateTime? LastUpdate { get; internal set; }
+        public static CultureInfo ResourceCulture
+        {
+            get
+            {
+                lock (SyncRoot)
+                {
+                    return _resourceCulture;
+                }
+            }
+            set
+            {
+                lock (SyncRoot)
+                {
+                    _resourceCulture = value ?? CultureInfo.InvariantCulture;
+                }
+            }
+        }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the device should be forcibly awakened from a low-power state.
+        /// Gets a snapshot of the currently cached storage devices.
         /// </summary>
-        public bool ForceWakeup { get; set; } = true;
-
-        #endregion
-
-        #region Internal
-
-        internal bool IsValid { get; private set; }
-
-        internal static bool HasNVMeStorageQuery { get; private set; }
-
-        internal static bool IsARM => RuntimeInformation.ProcessArchitecture == Architecture.Arm
-                                   || RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
-
-        internal HostReadsWritesUnit HostReadsWritesUnit { get; set; }
-
-        internal NandWritesUnit NandWritesUnit { get; set; } = NandWritesUnit.NandWritesGB;
-
-        internal COMMAND_TYPE Command { get; set; }
-
-        internal byte Target { get; set; }
-
-        internal byte ScsiPort { get; set; } = byte.MaxValue;
-        internal byte ScsiTargetID { get; set; } = byte.MaxValue;
-
-        internal int SiliconImageType { get; private set; }
-
-        internal float TemperatureMultiplier { get; set; } = 1.0f;
-
-        #endregion
-
-        #region Fixed
-
-        /// <summary>
-        /// Smart key which identifies storage medium.
-        /// </summary>
-        public SmartKey SmartKey { get; set; }
-
-        /// <summary>
-        /// Indicates if this is a NVMe disk.
-        /// </summary>
-        public bool IsNVMe { get; internal set; }
-
-        /// <summary>
-        /// Indicates if this is a SSD disk.
-        /// </summary>
-        public bool IsSSD { get; internal set; }
-
-        /// <summary>
-        /// Name of storage controller of <see cref="Storage"/>.
-        /// </summary>
-        public string StorageController { get; private set; }
-
-        /// <summary>
-        /// Type of storage controller.
-        /// </summary>
-        public StorageControllerType StorageControllerType { get; private set; }
-            = StorageControllerType.Unknown;
-
-        /// <summary>
-        /// Vendor ID of disk.
-        /// </summary>
-        public ushort? VendorID { get; internal set; }
-
-        /// <summary>
-        /// Vendor as string, if available.
-        /// </summary>
-        public string Vendor { get; internal set; }
-
-        /// <summary>
-        /// Product ID of disk.
-        /// </summary>
-        public ushort? ProductID { get; internal set; }
-
-        /// <summary>
-        /// Number of drive.
-        /// </summary>
-        public int DriveNumber => _StorageDeviceInternal.DriveNumber;
-
-        /// <summary>
-        /// Device path with which a handle can be opened.
-        /// </summary>
-        public string PhysicalPath => _StorageDeviceInternal.PhysicalPath;
-
-        /// <summary>
-        /// ID of device.
-        /// </summary>
-        public string DeviceID => _StorageDeviceInternal.DeviceID;
-
-        /// <summary>
-        /// Bus type of this instance.
-        /// </summary>
-        public StorageBusType BusType { get; private set; }
-
-        /// <summary>
-        /// Indicates if this storage medium is removable.
-        /// </summary>
-        public bool IsRemoveableMedia { get; private set; }
-
-        /// <summary>
-        /// Gets the total size of storage space on a drive, in bytes.
-        /// </summary>
-        public ulong TotalSize { get; internal set; }
-
-        /// <summary>
-        /// Model name of device.
-        /// </summary>
-        public string Model { get; internal set; }
-
-        /// <summary>
-        /// Firmware of device.
-        /// </summary>
-        public string Firmware { get; internal set; }
-
-        /// <summary>
-        /// Firmware revision of device.
-        /// </summary>
-        public string FirmwareRev { get; internal set; }
-
-        /// <summary>
-        /// Serial number of device.
-        /// </summary>
-        public string SerialNumber { get; internal set; }
-
-        /// <summary>
-        /// Detected time unit type.
-        /// </summary>
-        public TimeUnitType DetectedTimeUnitType { get; internal set; }
-
-        /// <summary>
-        /// Measured time unit type.
-        /// </summary>
-        public TimeUnitType MeasuredTimeUnitType { get; internal set; }
-
-        /// <summary>
-        /// Contains ATA information.
-        /// </summary>
-        public ATAInfo ATAInfo { get; internal set; }
-
-        #endregion
-
-        #region Volatile
-
-        /// <summary>
-        /// Identifies if this device is a dynamic disk (Windows).
-        /// </summary>
-        public bool IsDynamicDisk => Partitions.Any(p => p.IsDynamicDiskPartition);
-
-        /// <summary>
-        /// Gets the total free size of storage space on a drive, in bytes.
-        /// </summary>
-        /// <remarks>Calculation (all <see cref="Partitions"/>): <see cref="TotalSize"/> - <see cref="Partition.PartitionLength"/> + <see cref="Partition.AvailableFreeSpace"/>.<br/>
-        /// This may return null if free size is not supported for this disk.<br/>
-        /// Data may not be fully reliable if this disk contains another operating system partition (check <see cref="Partition.IsOtherOperatingSystemPartition"/>).</remarks>
-        public ulong? TotalFreeSize => GetTotalFreeSize();
-
-        /// <summary>
-        /// Smart information of drive.
-        /// </summary>
-        public SmartInfo Smart { get; internal set; } = new();
-
-        /// <summary>
-        /// List of all partitions on drive.
-        /// </summary>
-        /// <remarks>Partitions do not reflect partitions on a dynamic disk (Windows) - check <see cref="IsDynamicDisk"/>.</remarks>
-        public List<Partition> Partitions { get; private set; } = new();
-
-        #endregion
-
-        #region Features
-
-        public bool IsTrimSupported { get; internal set; }
-
-        public bool IsVolatileWriteCachePresent { get; internal set; }
-
-        #endregion
+        public static List<StorageDevice> CurrentDisks
+        {
+            get
+            {
+                lock (SyncRoot)
+                {
+                    return StorageDeviceCloneHelper.CloneList(_currentDisks);
+                }
+            }
+        }
 
         #endregion
 
         #region Public
 
         /// <summary>
-        /// Updates all volatile data.
+        /// Gets the list of currently visible storage devices.
         /// </summary>
-        public void Update()
+        /// <returns>A list of <see cref="StorageDevice"/> objects representing the currently visible storage devices.</returns>
+        public static List<StorageDevice> GetDisks()
         {
-            IntPtr handle = IntPtr.Zero;
-
-            if (Command.AnyOf(COMMAND_TYPE.CMD_TYPE_CSMI, COMMAND_TYPE.CMD_TYPE_CSMI_PHYSICAL_DRIVE))
-            {
-                handle = SharedMethods.TryGetCsmiHandle(ScsiPort, out var csmiHandle) ? csmiHandle : IntPtr.Zero;
-            }
-            else
-            {
-                handle = SafeFileHandler.OpenHandle(_StorageDeviceInternal.PhysicalPath);
-            }
-
-            DiskHandler.UpdateSmartInfo(this, handle);
-
-            UpdatePartitions(handle);
-
-            SafeFileHandler.CloseHandle(handle);
-
-            LastUpdate = DateTime.Now;
+            EnumerateStorageState(out var visibleDisks, out var mediaWatchDevices, out var mediaStates);
+            return visibleDisks;
         }
 
-        public void Dispose()
+        /// <summary>
+        /// Refreshes the current state of the specified storage device.
+        /// </summary>
+        /// <param name="device">The device to refresh.</param>
+        /// <returns>Whether the device state was successfully refreshed or device had no changes.</returns>
+        public static bool Refresh(StorageDevice device)
         {
-            if (!_Disposed)
+            return Refresh(device, true, true);
+        }
+
+        /// <summary>
+        /// Refreshes the volatile data of the specified storage device.
+        /// </summary>
+        /// <param name="device">The device to refresh.</param>
+        /// <returns>Whether the volatile data was successfully refreshed or device had no changes.</returns>
+        public static bool RefreshVolatileData(StorageDevice device)
+        {
+            return Refresh(device, true, true);
+        }
+
+        /// <summary>
+        /// Refreshes the partitions of the specified storage device.
+        /// </summary>
+        /// <param name="device">The device to refresh.</param>
+        /// <returns>Whether the partitions were successfully refreshed or device had no changes.</returns>
+        public static bool RefreshPartitions(StorageDevice device)
+        {
+            if (device == null)
             {
-                _Disposed = true;
+                throw new ArgumentNullException(nameof(device));
+            }
+
+            bool changed = StoragePartitionReader.PopulatePartitions(device, new WindowsStorageIoControl());
+            device.LastUpdatedUtc = DateTime.UtcNow;
+            return changed;
+        }
+
+        /// <summary>
+        /// Refreshes the current state of the specified storage device.
+        /// </summary>
+        /// <param name="device">The device to refresh.</param>
+        /// <param name="refreshProbeData">Whether to refresh the probe data.</param>
+        /// <param name="refreshPartitions">Whether to refresh the partitions.</param>
+        /// <returns>Whether the device state was successfully refreshed or device had no changes.</returns>
+        public static bool Refresh(StorageDevice device, bool refreshProbeData, bool refreshPartitions)
+        {
+            if (device == null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
+
+            bool changed = false;
+
+            if (refreshProbeData)
+            {
+                //Probe the device again and update the properties
+                var refreshedDevices = GetDisks();
+
+                //Find the best match for the device in the refreshed list
+                var refreshed = StorageDeviceIdentityMatcher.FindBestMatch(refreshedDevices, device);
+
+                //If the device is no longer present, return false
+                if (refreshed == null)
+                {
+                    return false;
+                }
+
+                changed = StorageDeviceCloneHelper.CopyInto(refreshed, device);
+            }
+            else if (refreshPartitions)
+            {
+                changed = StoragePartitionReader.PopulatePartitions(device, new WindowsStorageIoControl());
+            }
+
+            if (refreshProbeData && refreshPartitions)
+            {
+                return changed;
+            }
+
+            if (refreshPartitions)
+            {
+                changed |= StoragePartitionReader.PopulatePartitions(device, new WindowsStorageIoControl());
+            }
+
+            device.LastUpdatedUtc = DateTime.UtcNow;
+            return changed;
+        }
+
+        /// <summary>
+        /// Starts monitoring storage devices for changes.
+        /// </summary>
+        public static void StartMonitoring()
+        {
+            EnsureMonitoringStarted();
+        }
+
+        /// <summary>
+        /// Refreshes the cached disks.
+        /// </summary>
+        public static void RefreshCachedDisks()
+        {
+            EnsureMonitoringStarted();
+            HandleStorageTopologyChanged();
+        }
+
+        /// <summary>
+        /// Attempts to wake up the specified device if it is currently powered off.
+        /// </summary>
+        /// <param name="device">The storage device to wake up. Must not be null.</param>
+        public static void TryWakeUp(StorageDevice device)
+        {
+            if (device == null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
+
+            if (device.IsDevicePowerOn == true)
+            {
+                return;
+            }
+
+            var ioControl = new WindowsStorageIoControl();
+
+            SafeFileHandle handle = ioControl.OpenDevice(
+                device.DevicePath,
+                IoAccess.GenericRead,
+                IoShare.ReadWrite,
+                IoCreation.OpenExisting,
+                IoFlags.Normal);
+
+            using (handle)
+            {
+                var buffer = new byte[512];
+
+                Kernel32Native.SetFilePointerEx(handle, 0, IntPtr.Zero, 0);
+                Kernel32Native.ReadFile(handle, buffer, (uint)buffer.Length, out _, IntPtr.Zero);
             }
         }
 
@@ -398,339 +314,415 @@ namespace DiskInfoToolkit
 
         #region Internal
 
-        internal static int GetDriveNumber(IntPtr handle)
+        internal static ILocalizedTextProvider GetTextProvider()
         {
-            if (Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_STORAGE_GET_DEVICE_NUMBER, IntPtr.Zero, 0, out var sdn, Marshal.SizeOf<STORAGE_DEVICE_NUMBER>(), out _, IntPtr.Zero))
+            lock (SyncRoot)
             {
-                return sdn.DeviceNumber;
+                if (_resourceManager == null)
+                {
+                    _resourceBaseName = ResolveResourceBaseName(typeof(Storage).Assembly);
+                    if (!string.IsNullOrWhiteSpace(_resourceBaseName))
+                    {
+                        _resourceManager = new ResourceManager(_resourceBaseName, typeof(Storage).Assembly);
+                    }
+                }
+
+                return _resourceManager != null
+                    ? new ResourceManagerLocalizedTextProvider(_resourceManager, _resourceCulture)
+                    : null;
+            }
+        }
+
+        internal static string ResolveResourceBaseName(Assembly assembly)
+        {
+            if (assembly == null)
+            {
+                return string.Empty;
             }
 
-            return -1;
-        }
+            var resourceNames = assembly.GetManifestResourceNames();
+            if (resourceNames == null || resourceNames.Length == 0)
+            {
+                return string.Empty;
+            }
 
-        internal static bool ModelContains(Storage storage, string text)
-        {
-            return storage.Model.Contains(text, StringComparison.OrdinalIgnoreCase);
-        }
+            const string preferredSuffix = ".Resources.Resources.resources";
+            const string fallbackSuffix = ".Resources.resources";
+            const string resourceExtension = ".resources";
 
-        internal static bool ModelStartsWith(Storage storage, string text)
-        {
-            return storage.Model.StartsWith(text, StringComparison.OrdinalIgnoreCase);
+            foreach (var resourceName in resourceNames)
+            {
+                if (resourceName != null && resourceName.EndsWith(preferredSuffix, StringComparison.Ordinal))
+                {
+                    return resourceName.Substring(0, resourceName.Length - resourceExtension.Length);
+                }
+            }
+
+            foreach (var resourceName in resourceNames)
+            {
+                if (resourceName != null && resourceName.EndsWith(fallbackSuffix, StringComparison.Ordinal))
+                {
+                    return resourceName.Substring(0, resourceName.Length - resourceExtension.Length);
+                }
+            }
+
+            return string.Empty;
         }
 
         #endregion
 
         #region Private
 
-        void Initialize(IntPtr handle)
+        private static void EnumerateStorageState(out List<StorageDevice> visibleDisks, out List<StorageDevice> mediaWatchDevices, out Dictionary<string, bool?> mediaStates)
         {
-            if (false == (IsValid = IdentifyStorageController()))
-            {
-                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(IdentifyStorageController)} failed.");
+            //Get the raw list of disks
+            var rawDisks = EnumerateRawDisks();
 
+            //Extract the media-watch candidates and build the media presence state snapshot before filtering
+            mediaWatchDevices = StorageMediaPresenceMonitor.ExtractMediaWatchDevices(rawDisks);
+
+            //Build the media presence state snapshot before filtering,
+            //so that devices that are filtered due to no media presence are still monitored for media changes
+            mediaStates = StorageMediaPresenceMonitor.BuildStateSnapshot(mediaWatchDevices);
+
+            //Filter the raw list to the visible list
+            visibleDisks = StorageDeviceCloneHelper.CloneList(rawDisks);
+
+            //Filter out devices that should not be visible
+            StorageMediaPresenceMonitor.FilterNoMediaDevices(visibleDisks);
+        }
+
+        private static List<StorageDevice> EnumerateRawDisks()
+        {
+            var vendorLibraries = new ExternalVendorLibraryManager();
+
+            var engine = new StorageDetectionEngine(
+                new WindowsStorageIoControl(),
+                vendorLibraries,
+                new OptionalVendorBackendSet(vendorLibraries));
+
+            //Get the raw list of disks
+            var disks = engine.GetDisks();
+            var ioControl = new WindowsStorageIoControl();
+
+            foreach (var disk in disks)
+            {
+                //Populate the partitions for all disks
+                StoragePartitionReader.PopulatePartitions(disk, ioControl);
+                disk.LastUpdatedUtc = DateTime.UtcNow;
+            }
+
+            return disks;
+        }
+
+        private static void EnsureMonitoringStarted()
+        {
+            lock (SyncRoot)
+            {
+                if (_monitoringStarted)
+                {
+                    return;
+                }
+
+                _windowProcDelegate = WindowProc;
+
+                //Get the initial storage state before starting the monitoring threads, so that we have a baseline for change detection and can populate the media watch state
+                EnumerateStorageState(out var initialVisibleDisks, out var initialMediaWatchDevices, out var initialMediaStates);
+
+                _currentDisks = StorageDeviceCloneHelper.CloneList(initialVisibleDisks);
+                _mediaWatchDevices = StorageDeviceCloneHelper.CloneList(initialMediaWatchDevices);
+                _removableMediaStates = initialMediaStates;
+
+                //Start rescan thread, which rescans the storage state when signaled by the message loop thread or media watch loop
+                _rescanThread = new Thread(RescanLoop)
+                {
+                    IsBackground = true,
+                    Name = $"{nameof(Storage)}.{nameof(RescanLoop)}"
+                };
+                _rescanThread.Start();
+
+                //Start the message loop thread, which listens for device change notifications and signals rescans
+                _messageLoopThread = new Thread(MessageLoop)
+                {
+                    IsBackground = true,
+                    Name = $"{nameof(Storage)}.{nameof(MessageLoop)}"
+                };
+                _messageLoopThread.Start();
+
+                //Start the media watch loop thread, which periodically checks for removable media state changes and signals rescans
+                _mediaWatchThread = new Thread(MediaWatchLoop)
+                {
+                    IsBackground = true,
+                    Name = $"{nameof(Storage)}.{nameof(MediaWatchLoop)}"
+                };
+                _mediaWatchThread.Start();
+
+                _monitoringStarted = true;
+            }
+        }
+
+        private static void MessageLoop()
+        {
+            if (!CreateMessageWindow())
+            {
                 return;
             }
-
-            if (false == (IsValid = GetDiskGeometry(handle)))
-            {
-                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskGeometry)} failed.");
-
-                return;
-            }
-
-            if (false == (IsValid = GetDiskInformation(handle)))
-            {
-                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(GetDiskInformation)} failed.");
-
-                return;
-            }
-
-            UpdatePartitions(handle);
-        }
-
-        void UpdatePartitions(IntPtr handle)
-        {
-            List<Partition> partitions;
-            Partition.GetPartitions(handle, DriveNumber, out partitions);
-
-            Partitions.Clear();
-            Partitions.AddRange(partitions);
-        }
-
-        ulong? GetTotalFreeSize()
-        {
-            //No support for dynamic disks
-            if (IsDynamicDisk)
-            {
-                return null;
-            }
-
-            //Sum of free space on partitions
-            var partitionsFree = Partitions.Sum(p => (long?)p.AvailableFreeSpace);
-
-            //All recognized partitions do not have free space information
-            if (partitionsFree == null)
-            {
-                return null;
-            }
-
-            //Sum of partition sizes
-            var partitionSizes = Partitions.Sum(p => p.PartitionLength);
-
-            //Calculate total free size
-            var totalFree = TotalSize - (ulong)partitionSizes + (ulong)partitionsFree.GetValueOrDefault();
-
-            return totalFree;
-        }
-
-        void UsbNVMeCheck()
-        {
-            //USB device
-            if (BusType == StorageBusType.BusTypeUsb
-             || ModelContains(this, "USB Device")
-             || StorageControllerType == StorageControllerType.UASP)
-            {
-                if (ModelContains(this, "NVME")
-                 || ModelContains(this, "Optane")
-                 || PhysicalPath.Contains("NVME", StringComparison.OrdinalIgnoreCase)
-                 || PhysicalPath.Contains("Optane", StringComparison.OrdinalIgnoreCase))
-                {
-                    IsNVMe = true;
-                }
-                else //Check for USB ID mapping
-                {
-                    var venLoc = _StorageDeviceInternal.HardwareID.IndexOf("VID_", StringComparison.OrdinalIgnoreCase);
-                    var devLoc = _StorageDeviceInternal.HardwareID.IndexOf("PID_", StringComparison.OrdinalIgnoreCase);
-
-                    if (venLoc != -1 && devLoc != -1)
-                    {
-                        var venStr = _StorageDeviceInternal.HardwareID.Substring(venLoc + 4, 4);
-                        var devStr = _StorageDeviceInternal.HardwareID.Substring(devLoc + 4, 4);
-
-                        int venID = Convert.ToInt32(venStr, 16);
-                        int devID = Convert.ToInt32(devStr, 16);
-
-                        VendorID  = (ushort)venID;
-                        ProductID = (ushort)devID;
-
-                        var vendor = USBIDReader.Vendors.FirstOrDefault(v => v.ID == venID);
-                        if (vendor != null)
-                        {
-                            Vendor = vendor.Name;
-
-                            var device = vendor.Devices.FirstOrDefault(d => d.ID == devID);
-
-                            if (device != null)
-                            {
-                                if (vendor.Name.Contains("NVME"  , StringComparison.OrdinalIgnoreCase)
-                                 || vendor.Name.Contains("Optane", StringComparison.OrdinalIgnoreCase)
-                                 || device.Name.Contains("NVME"  , StringComparison.OrdinalIgnoreCase)
-                                 || device.Name.Contains("Optane", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    IsNVMe = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else //No USB device, read vendor normally
-            {
-                var venLoc = _StorageDeviceInternal.HardwareID.IndexOf("VEN_", StringComparison.OrdinalIgnoreCase);
-                var devLoc = _StorageDeviceInternal.HardwareID.IndexOf("DEV_", StringComparison.OrdinalIgnoreCase);
-
-                if (venLoc != -1 && devLoc != -1)
-                {
-                    var venStr = _StorageDeviceInternal.HardwareID.Substring(venLoc + 4, 4);
-                    var devStr = _StorageDeviceInternal.HardwareID.Substring(devLoc + 4, 4);
-
-                    int venID = Convert.ToInt32(venStr, 16);
-                    int devID = Convert.ToInt32(devStr, 16);
-
-                    VendorID  = (ushort)venID;
-                    ProductID = (ushort)devID;
-                }
-            }
-        }
-
-        bool IdentifyStorageController()
-        {
-            if (StorageController.Contains("USB") || StorageController.Contains("UAS"))
-            {
-                StorageControllerType = StorageControllerType.UASP;
-            }
-
-            if (StorageController.Contains("VIA VT6410")
-             || StorageController.Contains("ITE IT8212"))
-            {
-                StorageControllerType = StorageControllerType.BlackList;
-            }
-
-            if (StorageController.Contains("NVIDIA"))
-            {
-                StorageControllerType = StorageControllerType.Nvidia;
-            }
-
-            if (StorageController.Contains("Marvell"))
-            {
-                StorageControllerType = StorageControllerType.Marvell;
-            }
-
-            if (StorageController.Contains("DVDFab Virtual Drive"))
-            {
-                StorageControllerType = StorageControllerType.DVDFabVirtualDrive;
-            }
-
-            if (StorageController.Contains("Silicon Image SiI "))
-            {
-                StorageControllerType = StorageControllerType.SiliconImage;
-
-                var number = StorageController.Replace("Silicon Image SiI ", string.Empty);
-
-                if (!int.TryParse(number, out var imgType))
-                {
-                    return false;
-                }
-
-                SiliconImageType = imgType;
-            }
-            else if (StorageController.Contains("BUFFALO IFC-PCI2ES"))
-            {
-                StorageControllerType = StorageControllerType.SiliconImage;
-
-                SiliconImageType = 3112;
-            }
-            else if (StorageController.Contains("BUFFALO IFC-PCIE2SA"))
-            {
-                StorageControllerType = StorageControllerType.SiliconImage;
-
-                SiliconImageType = 3132;
-            }
-
-            return true;
-        }
-
-        bool IdentifyDisk(IntPtr handle)
-        {
-            // [2010/12/05] Workaround for SAMSUNG HD204UI
-            // http://sourceforge.net/apps/trac/smartmontools/wiki/SamsungF4EGBadBlocks
-            if (ModelContains(this, "SAMSUNG HD155UI")
-             || ModelContains(this, "SAMSUNG HD204UI")
-             && Firmware.Contains("1AQ10003", StringComparison.OrdinalIgnoreCase)
-               )
-            {
-                return false;
-            }
-
-            // [2018/10/24] Workaround for FuzeDrive (AMDStoreMi)
-            // http://sourceforge.net/apps/trac/smartmontools/wiki/SamsungF4EGBadBlocks
-            if (ModelContains(this, "FuzeDrive")
-             || ModelContains(this, "StoreMI")
-               )
-            {
-                return false;
-            }
-
-            UsbNVMeCheck();
-
-            if (!DeviceIdentifier.IdentifyDisk(this, handle))
-            {
-                LogSimple.LogTrace($"{nameof(Storage)}: {nameof(DeviceIdentifier.IdentifyDisk)} unsuccessful.");
-                return false;
-            }
-
-            return true;
-        }
-
-        bool GetDiskGeometry(IntPtr handle)
-        {
-            var size = Marshal.SizeOf<DISK_GEOMETRY_EX>();
-
-            var buffer = Marshal.AllocHGlobal(size);
 
             try
             {
-                if (!Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_DISK_GET_DRIVE_GEOMETRY_EX, IntPtr.Zero, 0, buffer, size, out _, IntPtr.Zero))
+                while (User32Native.GetMessage(out var msg, _messageWindow, 0, 0) > 0)
                 {
-                    return false;
+                    User32Native.TranslateMessage(ref msg);
+                    User32Native.DispatchMessage(ref msg);
                 }
+            }
+            finally
+            {
+                UnregisterStorageNotifications();
+                if (_messageWindow != IntPtr.Zero)
+                {
+                    User32Native.DestroyWindow(_messageWindow);
+                    _messageWindow = IntPtr.Zero;
+                }
+            }
+        }
 
-                var geometry = Marshal.PtrToStructure<DISK_GEOMETRY_EX>(buffer);
+        private static bool CreateMessageWindow()
+        {
+            var wnd = new WNDCLASSEX();
+            wnd.cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>();
+            wnd.lpfnWndProc = _windowProcDelegate;
+            wnd.lpszClassName = MessageWindowClassName;
+            wnd.hInstance = Kernel32Native.GetModuleHandle(null);
 
-                TotalSize = (ulong)geometry.DiskSize;
+            ushort atom = User32Native.RegisterClassEx(ref wnd);
+            if (atom == 0)
+            {
+                return false;
+            }
 
+            _messageWindow = User32Native.CreateWindowEx(
+                0,
+                wnd.lpszClassName,
+                MessageWindowTitle,
+                0,
+                0,
+                0,
+                0,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                wnd.hInstance,
+                IntPtr.Zero);
+
+            if (_messageWindow == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            RegisterStorageNotifications();
+            return true;
+        }
+
+        private static IntPtr WindowProc(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam)
+        {
+            if (msg == User32Native.WM_DEVICECHANGE)
+            {
+                uint eventCode = unchecked((uint)wParam.ToUInt64());
+
+                if (eventCode == User32Native.DBT_DEVICEARRIVAL
+                    || eventCode == User32Native.DBT_DEVICEREMOVECOMPLETE
+                    || eventCode == User32Native.DBT_DEVNODES_CHANGED)
+                {
+                    QueueRescan();
+                }
+            }
+
+            return User32Native.DefWindowProc(hWnd, msg, wParam, lParam);
+        }
+
+        private static void RegisterStorageNotifications()
+        {
+            UnregisterStorageNotifications();
+
+            //Register for volume and disk interface notifications
+            _volumeNotificationHandle = RegisterDeviceInterfaceNotification(DeviceInterfaceGuids.Volume);
+            _diskNotificationHandle = RegisterDeviceInterfaceNotification(DeviceInterfaceGuids.Disk);
+        }
+
+        private static void UnregisterStorageNotifications()
+        {
+            if (_volumeNotificationHandle != IntPtr.Zero)
+            {
+                User32Native.UnregisterDeviceNotification(_volumeNotificationHandle);
+                _volumeNotificationHandle = IntPtr.Zero;
+            }
+
+            if (_diskNotificationHandle != IntPtr.Zero)
+            {
+                User32Native.UnregisterDeviceNotification(_diskNotificationHandle);
+                _diskNotificationHandle = IntPtr.Zero;
+            }
+        }
+
+        private static IntPtr RegisterDeviceInterfaceNotification(Guid classGuid)
+        {
+            if (_messageWindow == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            var filter = new DEV_BROADCAST_DEVICEINTERFACE();
+            filter.dbcc_size = Marshal.SizeOf<DEV_BROADCAST_DEVICEINTERFACE>();
+            filter.dbcc_devicetype = User32Native.DBT_DEVTYP_DEVICEINTERFACE;
+            filter.dbcc_reserved = 0;
+            filter.dbcc_classguid = classGuid;
+            filter.dbcc_name = 0;
+
+            var filterPtr = Marshal.AllocHGlobal(filter.dbcc_size);
+            try
+            {
+                Marshal.StructureToPtr(filter, filterPtr, false);
+                return User32Native.RegisterDeviceNotification(_messageWindow, filterPtr, User32Native.DEVICE_NOTIFY_WINDOW_HANDLE);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(filterPtr);
+            }
+        }
+
+        private static void QueueRescan()
+        {
+            RescanSignal.Set();
+        }
+
+        private static void MediaWatchLoop()
+        {
+            while (true)
+            {
+                var delay = MediaWatchLoopDelay;
+                Thread.Sleep(delay);
+
+                try
+                {
+                    if (CheckForRemovableMediaStateChanges())
+                    {
+                        QueueRescan();
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private static bool CheckForRemovableMediaStateChanges()
+        {
+            List<StorageDevice> snapshot;
+            Dictionary<string, bool?> previousStates;
+
+            lock (SyncRoot)
+            {
+                snapshot = StorageDeviceCloneHelper.CloneList(_mediaWatchDevices);
+                previousStates = new Dictionary<string, bool?>(_removableMediaStates, StringComparer.OrdinalIgnoreCase);
+            }
+
+            var currentStates = StorageMediaPresenceMonitor.BuildStateSnapshot(snapshot);
+            bool changed = !MediaStateDictionariesEqual(previousStates, currentStates);
+
+            if (changed)
+            {
+                lock (SyncRoot)
+                {
+                    _removableMediaStates = currentStates;
+                }
+            }
+
+            return changed;
+        }
+
+        private static bool MediaStateDictionariesEqual(Dictionary<string, bool?> left, Dictionary<string, bool?> right)
+        {
+            if (ReferenceEquals(left, right))
+            {
                 return true;
             }
-            finally
+
+            if (left == null || right == null)
             {
-                Marshal.FreeHGlobal(buffer);
+                return false;
             }
-        }
 
-        bool GetDiskInformation(IntPtr handle)
-        {
-            var query = new STORAGE_PROPERTY_QUERY()
+            if (left.Count != right.Count)
             {
-                PropertyId = STORAGE_PROPERTY_ID.StorageDeviceProperty,
-                QueryType = STORAGE_QUERY_TYPE.PropertyStandardQuery,
-            };
+                return false;
+            }
 
-            var querySize = Marshal.SizeOf<STORAGE_PROPERTY_QUERY>();
-            var queryPtr = Marshal.AllocHGlobal(querySize);
-            Marshal.StructureToPtr(query, queryPtr, false);
-
-            var outBuffer = Marshal.AllocHGlobal(SharedConstants.BUFFER_SIZE);
-
-            try
+            foreach (var pair in left)
             {
-                if (Kernel32.DeviceIoControl(handle, Kernel32.IOCTL_STORAGE_QUERY_PROPERTY, queryPtr, querySize, outBuffer, SharedConstants.BUFFER_SIZE, out _, IntPtr.Zero))
+                if (!right.TryGetValue(pair.Key, out var otherValue))
                 {
-                    var descriptor = Marshal.PtrToStructure<STORAGE_DEVICE_DESCRIPTOR>(outBuffer);
-
-                    Model             = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductIdOffset      );
-                    SerialNumber      = Marshal.PtrToStringAnsi(outBuffer + descriptor.SerialNumberOffset   );
-                    Firmware          = Marshal.PtrToStringAnsi(outBuffer + descriptor.ProductRevisionOffset);
-                    BusType           = descriptor.BusType;
-                    IsRemoveableMedia = descriptor.RemovableMedia != 0;
-
-                    LogSimple.LogTrace($"{nameof(GetDiskInformation)}:");
-                    LogSimple.LogTrace($"{nameof(Model            )} = '{Model            }'");
-                    LogSimple.LogTrace($"{nameof(SerialNumber     )} = '{SerialNumber     }'");
-                    LogSimple.LogTrace($"{nameof(Firmware         )} = '{Firmware         }'");
-                    LogSimple.LogTrace($"{nameof(BusType          )} = '{BusType          }'");
-                    LogSimple.LogTrace($"{nameof(IsRemoveableMedia)} = '{IsRemoveableMedia}'");
-
-                    //Is removable media ?
-                    if (BusType == StorageBusType.BusTypeUsb && IsRemoveableMedia)
-                    {
-                        //Is possibly a SD Card reader ?
-                        if (ModelContains(this, "SD Card"    )
-                         || ModelContains(this, "Card Reader")
-                         || ModelContains(this, "CardReader" )
-                         || ModelContains(this, "SD/MMC"     )
-                         || ModelContains(this, "SDXC"       )
-                         || ModelContains(this, "SDHC"       )
-                         || ModelContains(this, "Multi-Card" )
-                         || ModelContains(this, "CF Card"    ))
-                        {
-                            LogSimple.LogTrace($"{nameof(GetDiskInformation)}: Skipping SD Card reader '{Model}'.");
-                            return false;
-                        }
-                    }
-                    else if (BusType == StorageBusType.BusTypeSd || BusType == StorageBusType.BusTypeMmc)
-                    {
-                        LogSimple.LogTrace($"{nameof(GetDiskInformation)}: Skipping SD/MMC device '{Model}'.");
-                        return false;
-                    }
+                    return false;
                 }
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(outBuffer);
-                Marshal.FreeHGlobal(queryPtr);
+
+                if (pair.Value != otherValue)
+                {
+                    return false;
+                }
             }
 
             return true;
+        }
+
+        private static void RescanLoop()
+        {
+            while (true)
+            {
+                RescanSignal.WaitOne();
+                Thread.Sleep(250);
+
+                while (RescanSignal.WaitOne(0))
+                {
+                }
+
+                try
+                {
+                    HandleStorageTopologyChanged();
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private static void HandleStorageTopologyChanged()
+        {
+            List<StorageDevice> previous;
+            lock (SyncRoot)
+            {
+                //Clone the previous state to avoid holding the lock during the potentially long enumeration and diffing operations
+                previous = StorageDeviceCloneHelper.CloneList(_currentDisks);
+            }
+
+            //Get the new state
+            EnumerateStorageState(out var current, out var mediaWatchDevices, out var mediaStates);
+
+            //Build the difference between the previous and current state
+            var diff = StorageDeviceDiffBuilder.Build(previous, current);
+
+            lock (SyncRoot)
+            {
+                _currentDisks = StorageDeviceCloneHelper.CloneList(current);
+                _mediaWatchDevices = StorageDeviceCloneHelper.CloneList(mediaWatchDevices);
+
+                _removableMediaStates = mediaStates;
+            }
+
+            //Raise change event if there are any changes
+            if (diff.HasChanges)
+            {
+                _devicesChanged?.Invoke(null, diff);
+            }
         }
 
         #endregion

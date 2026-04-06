@@ -13,8 +13,8 @@
     <RepositoryUrl>https://github.com/Blacktempel/DiskInfoToolkit</RepositoryUrl>
     <PackageTags>disk; device; nvme; ssd; hdd; toolkit; thermal; sensor; thermal sensor; smart; s.m.a.r.t.; data; monitoring; system; disk info</PackageTags>
     <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
-    <AssemblyVersion>1.2.1</AssemblyVersion>
-    <FileVersion>1.2.1</FileVersion>
+    <AssemblyVersion>2.0.0</AssemblyVersion>
+    <FileVersion>2.0.0</FileVersion>
     <Version>$(AssemblyVersion)</Version>
     <PackageIcon>packageicon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -78,27 +78,72 @@
     </AssemblyAttribute>
   </ItemGroup>
 
-  <!-- Compress -->
-  <Target Name="CompressResources" BeforeTargets="BeforeBuild" Inputs="$(MSBuildProjectDirectory)/Resources/pci.ids;$(MSBuildProjectDirectory)/Resources/usb.ids" Outputs="$(TargetDir)CompressedResources/pci.ids.gz;$(TargetDir)CompressedResources/usb.ids.gz">
-    <Message Text="Compressing resources for $(TargetFramework)..." Importance="High" />
-    <MakeDir Directories="$(TargetDir)CompressedResources/" />
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)/../Tools/GZipSingleFile/GZipSingleFile.csproj&quot; -- &quot;$(MSBuildProjectDirectory)/Resources/pci.ids&quot; &quot;$(TargetDir)CompressedResources/pci.ids.gz&quot;" />
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)/../Tools/GZipSingleFile/GZipSingleFile.csproj&quot; -- &quot;$(MSBuildProjectDirectory)/Resources/usb.ids&quot; &quot;$(TargetDir)CompressedResources/usb.ids.gz&quot;" />
-  </Target>
+  <PropertyGroup>
+    <!--
+      Shared output folder for generated compressed resources.
+      BaseIntermediateOutputPath points to the common obj\ folder and is NOT TFM-specific.
+      Example:
+        obj\CompressedResources\pci.ids.gz
+        obj\CompressedResources\usb.ids.gz
+    -->
+    <CompressedResourcesDirectory>$(BaseIntermediateOutputPath)CompressedResources\</CompressedResourcesDirectory>
 
-  <!-- Embed compressed resources -->
+    <!-- Path to the helper project that performs the actual GZip compression. -->
+    <GZipSingleFileProject>$(MSBuildProjectDirectory)\..\Tools\GZipSingleFile\GZipSingleFile.csproj</GZipSingleFileProject>
+  </PropertyGroup>
+
   <ItemGroup>
-    <EmbeddedResource Include="$(TargetDir)CompressedResources/pci.ids.gz">
-      <LogicalName>DiskInfoToolkit.Resources.pci.ids.gz</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="$(TargetDir)CompressedResources/usb.ids.gz">
-      <LogicalName>DiskInfoToolkit.Resources.usb.ids.gz</LogicalName>
+    <!--
+      Keep the original readable files in the repository.
+      They remain the authoring source; the .gz files are generated during build.
+    -->
+    <PlainCompressedResourceSource Include="$(MSBuildProjectDirectory)\Resources\pci.ids" />
+    <PlainCompressedResourceSource Include="$(MSBuildProjectDirectory)\Resources\usb.ids" />
+
+    <!--
+      Inputs that should invalidate the generated .gz files.
+      If either source file changes, or the GZip helper project/source changes,
+      the compressed files are regenerated.
+    -->
+    <CompressedResourceToolInput Include="$(GZipSingleFileProject)" />
+    <CompressedResourceToolInput Include="$(MSBuildProjectDirectory)\..\Tools\GZipSingleFile\**\*.cs" />
+
+    <!--
+      The generated shared .gz files.
+      These paths are deterministic and common for all target frameworks.
+    -->
+    <GeneratedCompressedResource Include="@(PlainCompressedResourceSource -> '$(CompressedResourcesDirectory)%(Filename)%(Extension).gz')" />
+
+    <!--
+      Embed the generated .gz files.
+      The logical names are set explicitly so the manifest names stay stable.
+      Example manifest names:
+        DiskInfoToolkit.Resources.pci.ids.gz
+        DiskInfoToolkit.Resources.usb.ids.gz
+    -->
+    <EmbeddedResource Include="@(GeneratedCompressedResource)">
+      <LogicalName>$(RootNamespace).Resources.%(Filename)%(Extension)</LogicalName>
+      <Visible>false</Visible>
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- Clean compressed resources -->
-  <Target Name="CleanCompressedResources" AfterTargets="Clean">
-    <RemoveDir Condition="Exists('$(TargetDir)CompressedResources/')" Directories="$(TargetDir)CompressedResources/" />
+  <Target Name="GenerateCompressedResources"
+          BeforeTargets="DispatchToInnerBuild;PrepareForBuild"
+          Inputs="@(PlainCompressedResourceSource);@(CompressedResourceToolInput)"
+          Outputs="@(GeneratedCompressedResource)"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <!-- Ensure the shared output folder exists exactly once under obj\. -->
+    <MakeDir Directories="$(CompressedResourcesDirectory)" />
+
+    <!--
+      One Exec per source file.
+      In a normal multi-target build:
+        - the outer build hits this target first,
+        - generates both .gz files once,
+        - all inner TFM builds then see the outputs and skip regeneration.
+    -->
+    <Exec Command='dotnet run --project &quot;$(GZipSingleFileProject)&quot; -- &quot;%(PlainCompressedResourceSource.Identity)&quot; &quot;$(CompressedResourcesDirectory)%(PlainCompressedResourceSource.Filename)%(PlainCompressedResourceSource.Extension).gz&quot;' />
   </Target>
 
   <ItemGroup>

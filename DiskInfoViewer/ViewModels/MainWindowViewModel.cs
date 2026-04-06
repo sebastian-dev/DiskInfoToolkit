@@ -3,10 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Copyright (c) 2025 Florian K.
- *
- * Code inspiration, improvements and fixes are from, but not limited to, following projects:
- * CrystalDiskInfo
+ * Copyright (c) 2026 Florian K.
  */
 
 using BlackSharp.Core.Asynchronous;
@@ -14,7 +11,6 @@ using BlackSharp.Core.Collections;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DiskInfoToolkit;
-using DiskInfoToolkit.Events;
 
 namespace DiskInfoViewer.ViewModels
 {
@@ -24,7 +20,6 @@ namespace DiskInfoViewer.ViewModels
 
         public MainWindowViewModel()
         {
-            StorageManager.StoragesChanged += OnStoragesChanged;
         }
 
         #endregion
@@ -49,14 +44,18 @@ namespace DiskInfoViewer.ViewModels
         {
             IsBusy = true;
 
+            Storage.DevicesChanged -= OnStoragesChanged;
+
             Executor.Run(() =>
             {
-                StorageManager.ReloadStorages();
+                var disks = Storage.GetDisks();
 
                 var storages = new ObservableCollectionEx<StorageViewModel>(
-                                    StorageManager.Storages
-                                        .OrderBy(s => s.DriveNumber)
+                                    disks
+                                        .OrderBy(s => s.StorageDeviceNumber)
                                         .Select(s => new StorageViewModel(new(s))));
+
+                Storage.DevicesChanged += OnStoragesChanged;
 
                 return () =>
                 {
@@ -71,21 +70,26 @@ namespace DiskInfoViewer.ViewModels
 
         #region Private
 
-        void OnStoragesChanged(StoragesChangedEventArgs e)
+        void OnStoragesChanged(object sender, StorageDevicesChangedEventArgs e)
         {
-            switch (e.StorageChangeIdentifier)
+            if (!e.HasChanges)
             {
-                case StorageChangeIdentifier.Added:
-                    StorageVMs.Add(new(new(e.Storage)));
-                    break;
-                case StorageChangeIdentifier.Removed:
-                    var removed = StorageVMs.FirstOrDefault(s => s.Storage.Storage == e.Storage);
-                    if (removed != null)
-                    {
-                        StorageVMs.Remove(removed);
-                    }
-                    break;
+                return;
             }
+
+            e.Added.ForEach(added =>
+            {
+                StorageVMs.Add(new(new(added)));
+            });
+
+            e.Removed.ForEach(removed =>
+            {
+                var removedVM = StorageVMs.FirstOrDefault(s => s.Storage.EqualsStorage(removed));
+                if (removedVM != null)
+                {
+                    StorageVMs.Remove(removedVM);
+                }
+            });
         }
 
         #endregion
