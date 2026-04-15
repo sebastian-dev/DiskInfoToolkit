@@ -30,6 +30,7 @@ namespace DiskInfoToolkit.Smart
             switch (settings.Profile)
             {
                 case SmartAttributeProfile.AdataIndustrial:
+                case SmartAttributeProfile.Samsung:
                     settings.HostReadWriteUnit = SmartHostReadWriteUnit.Unit512Bytes;
                     break;
                 case SmartAttributeProfile.SanDisk:
@@ -65,9 +66,6 @@ namespace DiskInfoToolkit.Smart
                     break;
                 case SmartAttributeProfile.Intel:
                     settings.HostReadWriteUnit = SmartHostReadWriteUnit.Unit32MiB;
-                    break;
-                case SmartAttributeProfile.Samsung:
-                    settings.HostReadWriteUnit = SmartHostReadWriteUnit.UnitGigabytes;
                     break;
                 case SmartAttributeProfile.SandForce:
                     settings.HostReadWriteUnit = SmartHostReadWriteUnit.UnitGigabytes;
