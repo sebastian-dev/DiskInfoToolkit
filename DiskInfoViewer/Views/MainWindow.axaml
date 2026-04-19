@@ -34,7 +34,7 @@
 			<TabControl Grid.Row="0" ItemsSource="{Binding StorageVMs}">
 				<TabControl.ItemTemplate>
 					<DataTemplate>
-						<TextBlock Text="{Binding Storage.DriveNumber, StringFormat='{}#{0}'}"/>
+						<TextBlock Text="{Binding Storage.UniqueIdentifier, StringFormat='{}#{0}'}"/>
 					</DataTemplate>
 				</TabControl.ItemTemplate>
 			</TabControl>

@@ -38,48 +38,79 @@ namespace DiskInfoToolkit.Partitions
                 return false;
             }
 
-            var path = StringUtil.FirstNonEmpty(device.DevicePath, device.AlternateDevicePath);
-            if (string.IsNullOrWhiteSpace(path))
+            foreach (var path in GetPartitionReadPaths(device))
             {
-                device.Partitions = new List<StoragePartitionInfo>();
-                device.LastUpdatedUtc = DateTime.UtcNow;
-                return false;
+                SafeFileHandle handle = ioControl.OpenDevice(
+                    path,
+                    IoAccess.GenericRead,
+                    IoShare.ReadWrite,
+                    IoCreation.OpenExisting,
+                    IoFlags.Normal);
+
+                if (handle == null || handle.IsInvalid)
+                {
+                    continue;
+                }
+
+                using (handle)
+                {
+                    var partitions = ReadPartitions(handle, ioControl);
+                    if (partitions.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    AssignDriveLettersAndFreeSpace(partitions, device.StorageDeviceNumber.GetValueOrDefault(), ioControl);
+
+                    //Check if partitions have changed compared to the existing snapshot
+                    bool changed = StorageDeviceSnapshotComparer.AreDifferent(
+                        new StorageDevice { Partitions = StorageDeviceCloneHelper.Clone(device).Partitions },
+                        new StorageDevice { Partitions = partitions });
+
+                    device.Partitions = partitions;
+                    device.LastUpdatedUtc = DateTime.UtcNow;
+                    return changed;
+                }
             }
 
-            SafeFileHandle handle = ioControl.OpenDevice(
-                path,
-                IoAccess.GenericRead,
-                IoShare.ReadWrite,
-                IoCreation.OpenExisting,
-                IoFlags.Normal);
+            device.Partitions = new List<StoragePartitionInfo>();
+            device.LastUpdatedUtc = DateTime.UtcNow;
 
-            if (handle == null || handle.IsInvalid)
-            {
-                device.Partitions = new List<StoragePartitionInfo>();
-                device.LastUpdatedUtc = DateTime.UtcNow;
-                return false;
-            }
-
-            using (handle)
-            {
-                var partitions = ReadPartitions(handle, ioControl);
-
-                AssignDriveLettersAndFreeSpace(partitions, device.StorageDeviceNumber.GetValueOrDefault(), ioControl);
-
-                //Check if partitions have changed compared to the existing snapshot
-                bool changed = StorageDeviceSnapshotComparer.AreDifferent(
-                    new StorageDevice { Partitions = StorageDeviceCloneHelper.Clone(device).Partitions },
-                    new StorageDevice { Partitions = partitions });
-
-                device.Partitions = partitions;
-                device.LastUpdatedUtc = DateTime.UtcNow;
-                return changed;
-            }
+            return false;
         }
 
         #endregion
 
         #region Private
+
+        private static IEnumerable<string> GetPartitionReadPaths(StorageDevice device)
+        {
+            var yielded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            //If we have a storage device number, we can try to read partitions from the physical drive path
+            if (device?.StorageDeviceNumber.HasValue == true)
+            {
+                var physicalDrivePath = $@"\\.\PhysicalDrive{device.StorageDeviceNumber.Value}";
+                if (yielded.Add(physicalDrivePath))
+                {
+                    yield return physicalDrivePath;
+                }
+            }
+
+            //Try to read from device path
+            var devicePath = StringUtil.FirstNonEmpty(device?.DevicePath);
+            if (!string.IsNullOrWhiteSpace(devicePath) && yielded.Add(devicePath))
+            {
+                yield return devicePath;
+            }
+
+            //Try alternate device path
+            var alternateDevicePath = StringUtil.FirstNonEmpty(device?.AlternateDevicePath);
+            if (!string.IsNullOrWhiteSpace(alternateDevicePath) && yielded.Add(alternateDevicePath))
+            {
+                yield return alternateDevicePath;
+            }
+        }
 
         private static List<StoragePartitionInfo> ReadPartitions(SafeFileHandle handle, IStorageIoControl ioControl)
         {

@@ -23,18 +23,30 @@ namespace DiskInfoViewer.ModelAbstraction
         {
             _Storage = sd;
 
-            StorageController = _Storage.Controller.Name;
-            DriveNumber       = (int)_Storage.StorageDeviceNumber;
-            BusType           = _Storage.BusType;
+            if (_Storage.StorageDeviceNumber.HasValue)
+            {
+                UniqueIdentifier = _Storage.StorageDeviceNumber.Value.ToString();
+            }
+            else if (_Storage.Scsi.PathID.HasValue && _Storage.Scsi.TargetID.HasValue)
+            {
+                UniqueIdentifier = $"{_Storage.Scsi.PathID}::{_Storage.Scsi.TargetID}";
+            }
+            else
+            {
+                UniqueIdentifier = "NO_ID";
+            }
+
+            StorageController    = _Storage.Controller.Name;
+            BusType              = _Storage.BusType;
             ControllerVendorName = _Storage.Controller.VendorName;
             ControllerDeviceName = _Storage.Controller.DeviceName;
-            TotalSize         = _Storage.DiskSizeBytes.GetValueOrDefault();
-            Model             = _Storage.ProductName;
-            Firmware          = _Storage.ProductRevision;
-            FirmwareRev       = _Storage.ProductRevision;
-            SerialNumber      = _Storage.SerialNumber;
-            IsDynamicDisk     = _Storage.IsDynamicDisk;
-            TotalFreeSize     = _Storage.TotalPartitionFreeSpaceBytes;
+            TotalSize            = _Storage.DiskSizeBytes.GetValueOrDefault();
+            Model                = _Storage.ProductName;
+            Firmware             = _Storage.ProductRevision;
+            FirmwareRev          = _Storage.ProductRevision;
+            SerialNumber         = _Storage.SerialNumber;
+            IsDynamicDisk        = _Storage.IsDynamicDisk;
+            TotalFreeSize        = _Storage.TotalPartitionFreeSpaceBytes;
         }
 
         #endregion
@@ -45,10 +57,15 @@ namespace DiskInfoViewer.ModelAbstraction
 
         StorageDevice _Storage;
 
+        #endregion
+
+        #region Properties
+
         #region Fixed
 
+        public string         UniqueIdentifier     { get; }
+
         public string         StorageController    { get; }
-        public int            DriveNumber          { get; }
         public StorageBusType BusType              { get; }
         public string         ControllerVendorName { get; }
         public string         ControllerDeviceName { get; }
